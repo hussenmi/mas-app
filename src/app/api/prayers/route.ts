@@ -8,7 +8,11 @@ const DEFAULT_COUNTRY = 'US';
 const METHOD = 2; // ISNA
 
 export async function GET(req: NextRequest) {
-  const today = new Date().toISOString().slice(0, 10);
+  const today = new Date();
+  const day = String(today.getDate()).padStart(2, '0');
+  const month = String(today.getMonth() + 1).padStart(2, '0');
+  const year = today.getFullYear();
+  const formattedDate = `${day}-${month}-${year}`;
   try {
     const url = `${BASE_URL}?city=${DEFAULT_CITY}&state=${DEFAULT_STATE}&country=${DEFAULT_COUNTRY}&method=${METHOD}&date_or_timestamp=${today}`;
     const response = await fetch(url);

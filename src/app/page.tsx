@@ -4,21 +4,32 @@ import React, { useState, useEffect } from 'react';
 import { Clock, Calendar, MapPin, Heart, Users, BookOpen, ChevronRight } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
+import duration from 'dayjs/plugin/duration';
+dayjs.extend(duration);
 
+// Type for prayer times
 interface PrayerTimes {
   Fajr: string;
   Dhuhr: string;
   Asr: string;
   Maghrib: string;
   Isha: string;
+  [key: string]: string;
+}
+
+interface NextPrayer {
+  name: string;
+  time: string;
+  countdown: string;
 }
 
 const HomePage = () => {
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [prayerTimes, setPrayerTimes] = useState<PrayerTimes | null>(null);
-  const [nextPrayer, setNextPrayer] = useState({ name: '', time: '', countdown: '' });
-  const [currentVerse, setCurrentVerse] = useState(0);
-  const [loading, setLoading] = useState(true);
+  const [nextPrayer, setNextPrayer] = useState<NextPrayer>({ name: '', time: '', countdown: '' });
+  const [currentVerse, setCurrentVerse] = useState<number>(0);
+  const [loading, setLoading] = useState<boolean>(true);
+  const [error, setError] = useState<string>('');
 
   const verses = [
     { arabic: 'وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا', english: 'And whoever saves a life, it is as if he has saved all of mankind.', reference: 'Quran 5:32' },
@@ -30,74 +41,80 @@ const HomePage = () => {
   useEffect(() => {
     const fetchPrayerTimes = async () => {
       try {
-        const res = await fetch('/api/prayers');
-        if (res.ok) {
-          const data = await res.json();
-          setPrayerTimes(data);
-          calculateNextPrayer(data);
+        setLoading(true);
+        setError('');
+        const res = await fetch('/api/prayers', { cache: 'no-store' });
+        if (!res.ok) throw new Error('Failed to fetch prayer times');
+        const data = await res.json();
+        // Validate data shape
+        if (!data || typeof data !== 'object' || !data.Fajr) {
+          throw new Error('Prayer times data is missing or malformed');
         }
-      } catch (error) {
-        console.error('Error fetching prayer times:', error);
+        setPrayerTimes(data);
+        calculateNextPrayer(data);
+      } catch (error: any) {
+        setError(error.message || 'Error fetching prayer times');
+        setPrayerTimes(null);
       } finally {
         setLoading(false);
       }
     };
-
     fetchPrayerTimes();
+    // Debug: verify effect is running
+    console.log('fetchPrayerTimes effect ran');
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Calculate next prayer and countdown
   const calculateNextPrayer = (times: PrayerTimes) => {
     if (!times) return;
-
     const now = dayjs();
-    let nextPrayerInfo = null;
-
-    const prayerOrder = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
-
-    for (const prayerName of prayerOrder) {
-      const prayerTime = dayjs(times[prayerName as keyof PrayerTimes], 'HH:mm');
-
-      if (prayerTime.isAfter(now)) {
-        nextPrayerInfo = { name: prayerName, time: prayerTime };
-        break;
+    const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
+    for (const prayer of prayers) {
+      const prayerTimeStr = times[prayer];
+      if (!prayerTimeStr) continue;
+      const prayerTime = dayjs(prayerTimeStr, 'HH:mm');
+      if (prayerTime.isValid() && prayerTime.isAfter(now)) {
+        const diff = prayerTime.diff(now);
+        const d = dayjs.duration(diff);
+        setNextPrayer({
+          name: prayer,
+          time: prayerTime.format('h:mm A'),
+          countdown: `${d.hours()}h ${d.minutes()}m`
+        });
+        return;
       }
     }
-
-    if (!nextPrayerInfo) {
-      const fajrTomorrow = dayjs(times.Fajr, 'HH:mm').add(1, 'day');
-      nextPrayerInfo = { name: 'Fajr', time: fajrTomorrow };
-    }
-
-    const diff = nextPrayerInfo.time.diff(now);
-    const hours = Math.floor(diff / (1000 * 60 * 60));
-    const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-
+    // If no prayer left today, set to Fajr tomorrow
+    const fajrTomorrow = dayjs(times.Fajr, 'HH:mm').add(1, 'day');
+    const diff = fajrTomorrow.diff(now);
+    const d = dayjs.duration(diff);
     setNextPrayer({
-      name: nextPrayerInfo.name,
-      time: nextPrayerInfo.time.format('h:mm A'),
-      countdown: `${hours}h ${minutes}m`,
+      name: 'Fajr',
+      time: fajrTomorrow.format('h:mm A'),
+      countdown: `${d.hours()}h ${d.minutes()}m`
     });
   };
 
   // Update time and prayer countdown every second
   useEffect(() => {
+    // Debug: verify timer effect is running
+    console.log('timer effect ran');
     const timer = setInterval(() => {
       setCurrentTime(new Date());
       if (prayerTimes) {
         calculateNextPrayer(prayerTimes);
       }
     }, 1000);
-
     const verseTimer = setInterval(() => {
       setCurrentVerse((prev) => (prev + 1) % verses.length);
     }, 5000);
-
     return () => {
       clearInterval(timer);
       clearInterval(verseTimer);
     };
-  }, [prayerTimes, verses.length]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [prayerTimes]);
 
   const formatTime = (time: string) => {
     if (!time) return 'Loading...';
@@ -125,7 +142,6 @@ const HomePage = () => {
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 relative overflow-hidden">
       <GeometricPattern />
-      
       <div className="relative z-10 container mx-auto px-4 py-8">
         {/* Header with Live Time */}
         <div className="text-center mb-8">
@@ -140,7 +156,6 @@ const HomePage = () => {
                 <span>Queens, NY</span>
               </div>
             </div>
-            
             <h1 className="text-6xl md:text-7xl font-bold text-gray-800 leading-tight mb-4">
               Welcome to{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-green-600 to-green-800">
@@ -150,9 +165,8 @@ const HomePage = () => {
             <p className="text-xl md:text-2xl text-gray-600 mb-8 leading-relaxed">
               Your digital gateway to community, prayer, and spiritual growth
             </p>
-
             {/* Next Prayer Countdown */}
-            {!loading && nextPrayer.name && (
+            {!loading && !error && nextPrayer.name && (
               <div className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl p-6 mb-8 transform hover:scale-105 transition-all duration-300">
                 <div className="flex items-center justify-center gap-4">
                   <Calendar className="w-6 h-6" />
@@ -164,7 +178,11 @@ const HomePage = () => {
                 </div>
               </div>
             )}
-
+            {error && (
+              <div className="bg-red-100 text-red-700 rounded-xl p-4 mb-8">
+                {error}
+              </div>
+            )}
             {/* Action Buttons */}
             <div className="flex flex-col sm:flex-row justify-center gap-4 mb-8">
               <Link href="/prayers" className="group bg-green-700 text-white px-8 py-4 rounded-xl font-semibold hover:bg-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg flex items-center justify-center gap-2">
@@ -180,7 +198,6 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-
         {/* Rotating Quranic Verses */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 max-w-4xl mx-auto border border-green-100">
           <div className="text-center">
@@ -190,7 +207,7 @@ const HomePage = () => {
                 {verses[currentVerse].arabic}
               </p>
               <p className="text-lg md:text-xl text-gray-700 mb-2 italic">
-                &quot;{verses[currentVerse].english}&quot;
+                "{verses[currentVerse].english}"
               </p>
               <p className="text-sm text-gray-500 font-semibold">
                 {verses[currentVerse].reference}
@@ -198,18 +215,19 @@ const HomePage = () => {
             </div>
           </div>
         </div>
-
         {/* Today's Prayer Schedule */}
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 mb-8 max-w-4xl mx-auto border border-green-100">
-          <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">Today&apos;s Prayer Schedule</h2>
+          <h2 className="text-3xl font-bold text-gray-800 text-center mb-6">Today's Prayer Schedule</h2>
           {loading ? (
             <p className="text-center text-gray-600">Loading prayer times...</p>
+          ) : error ? (
+            <p className="text-center text-red-600">{error}</p>
           ) : prayerTimes ? (
             <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
               {Object.entries(prayerTimes).map(([prayer, time]) => (
                 <div key={prayer} className="text-center p-4 rounded-xl bg-gradient-to-b from-green-50 to-green-100 hover:from-green-100 hover:to-green-200 transition-all duration-300 transform hover:scale-105">
                   <p className="font-semibold text-gray-700 mb-1">{prayer}</p>
-                  <p className="text-lg font-bold text-green-800">{formatTime(time as string)}</p>
+                  <p className="text-lg font-bold text-green-800">{formatTime(time)}</p>
                 </div>
               ))}
             </div>
@@ -217,7 +235,6 @@ const HomePage = () => {
             <p className="text-center text-red-600">Unable to load prayer times</p>
           )}
         </div>
-
         {/* Community Features Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
@@ -228,7 +245,6 @@ const HomePage = () => {
               Learn More <ChevronRight className="w-4 h-4" />
             </Link>
           </div>
-
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <Heart className="w-12 h-12 text-green-700 mb-4" />
             <h3 className="text-xl font-bold text-gray-800 mb-3">Support Your Masjid</h3>
@@ -237,7 +253,6 @@ const HomePage = () => {
               Donate Now
             </Link>
           </div>
-
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
             <BookOpen className="w-12 h-12 text-green-700 mb-4" />
             <h3 className="text-xl font-bold text-gray-800 mb-3">Islamic Education</h3>
@@ -247,7 +262,6 @@ const HomePage = () => {
             </Link>
           </div>
         </div>
-
         {/* Announcements Ticker */}
         <div className="bg-gradient-to-r from-green-700 to-green-800 text-white rounded-2xl p-4 shadow-xl">
           <div className="flex items-center gap-4">
@@ -255,7 +269,7 @@ const HomePage = () => {
             <div className="overflow-hidden flex-1">
               <div className="animate-marquee whitespace-nowrap">
                 <span className="mx-8">📿 Ramadan preparation classes start next week</span>
-                <span className="mx-8">🕌 Friday Jumu&apos;ah at 1:15 PM</span>
+                <span className="mx-8">🕌 Friday Jumu'ah at 1:15 PM</span>
                 <span className="mx-8">📚 Youth Islamic studies program registration open</span>
                 <span className="mx-8">🤝 Community iftar this Saturday 6:30 PM</span>
               </div>
@@ -263,7 +277,6 @@ const HomePage = () => {
           </div>
         </div>
       </div>
-
       <style jsx>{`
         @keyframes marquee {
           0% { transform: translateX(100%); }

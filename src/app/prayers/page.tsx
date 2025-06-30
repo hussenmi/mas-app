@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import dayjs from 'dayjs';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { Clock, Compass, Calendar, MapPin, Sunset, Moon, Sun, Bell } from 'lucide-react';
+import HijriDate from 'hijri-date';
 
 dayjs.extend(customParseFormat);
 
@@ -28,6 +29,7 @@ const PRAYER_ICONS: { [key: string]: any } = {
 };
 
 export default function PrayersPage() {
+  const [mounted, setMounted] = useState(false);
   const [times, setTimes] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,6 +38,7 @@ export default function PrayersPage() {
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [qiblaDirection] = useState(58); // Degrees for Queens, NY
   const [notificationsEnabled, setNotificationsEnabled] = useState(false);
+  const [islamicDate, setIslamicDate] = useState('');
 
   // Fetch prayer times from your existing API
   useEffect(() => {
@@ -121,7 +124,18 @@ export default function PrayersPage() {
     return 'N/A';
   };
 
-  const islamicDate = "15 Jumada al-Awwal 1446"; // You can make this dynamic too
+  // Dynamic Islamic date calculation (client only)
+  useEffect(() => {
+    setMounted(true);
+    if (typeof window !== 'undefined') {
+      const hijri = new HijriDate(selectedDate);
+      const hijriMonths = [
+        'Muharram', 'Safar', 'Rabiʿ al-Awwal', 'Rabiʿ al-Thani', 'Jumada al-Ula', 'Jumada al-Akhirah',
+        'Rajab', 'Shaʿban', 'Ramadan', 'Shawwal', 'Dhu al-Qiʿdah', 'Dhu al-Ḥijjah'
+      ];
+      setIslamicDate(`${hijri.getDate()} ${hijriMonths[hijri.getMonth()]} ${hijri.getFullYear()}`);
+    }
+  }, [selectedDate]);
 
   const QiblaCompass = () => (
     <div className="relative w-32 h-32 mx-auto">
@@ -190,10 +204,13 @@ export default function PrayersPage() {
     }
   };
 
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 py-8">
       <div className="container mx-auto px-4 max-w-6xl">
-        
         {/* Header Section */}
         <div className="text-center mb-8">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-green-100">
@@ -205,25 +222,25 @@ export default function PrayersPage() {
               </div>
               <div className="flex items-center gap-2">
                 <span>📅</span>
-                <span>{islamicDate}</span>
+                <span>{mounted ? islamicDate : '--'}</span>
               </div>
               <div className="flex items-center gap-2">
                 <MapPin className="w-4 h-4" />
                 <span>Queens, NY</span>
               </div>
             </div>
-            
             {/* Current Time Display */}
             <div className="bg-gradient-to-r from-green-600 to-green-700 text-white rounded-xl p-6 mb-6">
               <div className="flex justify-center items-center gap-4">
                 <Clock className="w-8 h-8" />
                 <div className="text-center">
-                  <div className="text-3xl font-bold">{currentTime.toLocaleTimeString()}</div>
+                  <div className="text-3xl font-bold">
+                    {mounted ? currentTime.toLocaleTimeString() : '--:--:--'}
+                  </div>
                   <div className="text-green-200">Current Time</div>
                 </div>
               </div>
             </div>
-
             <p className="text-green-700 font-semibold">
               Calculation Method: ISNA (Islamic Society of North America)
             </p>
@@ -316,10 +333,10 @@ export default function PrayersPage() {
             <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100">
               <h3 className="text-lg font-bold text-gray-800 mb-4">🕌 Masjid Information</h3>
               <div className="space-y-2 text-gray-600 text-sm">
-                <p><strong>Address:</strong> 123 Main St, Queens, NY</p>
-                <p><strong>Phone:</strong> (718) 555-0123</p>
-                <p><strong>Imam:</strong> Sheikh Abdul Rahman</p>
-                <p><strong>Jumu&apos;ah:</strong> 1:15 PM</p>
+                <p><strong>Address:</strong> 46-01 20th Ave, Astoria, NY 11105</p>
+                <p><strong>Phone:</strong> (718) 606-6025</p>
+                {/* <p><strong>Imam:</strong> Sheikh Abdul Rahman</p>
+                <p><strong>Jumu&apos;ah:</strong> 1:15 PM</p> */}
               </div>
             </div>
           </div>
@@ -338,13 +355,13 @@ export default function PrayersPage() {
           </div>
 
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100">
-            <h3 className="text-xl font-bold text-gray-800 mb-4">⏰ Prayer Time Adjustments</h3>
+            <h3 className="text-xl font-bold text-gray-800 mb-4">⏰ Prayer Time Adjustments (Iqammah time)</h3>
             <div className="space-y-2 text-gray-600 text-sm">
-              <p><strong>Fajr Iqamah:</strong> +30 minutes</p>
-              <p><strong>Dhuhr Iqamah:</strong> +20 minutes</p>
-              <p><strong>Asr Iqamah:</strong> +10 minutes</p>
-              <p><strong>Maghrib Iqamah:</strong> +5 minutes</p>
-              <p><strong>Isha Iqamah:</strong> +10 minutes</p>
+              <p><strong>Fajr:</strong> +30 minutes</p>
+              <p><strong>Dhuhr:</strong> +20 minutes</p>
+              <p><strong>Asr:</strong> +10 minutes</p>
+              <p><strong>Maghrib:</strong> +5 minutes</p>
+              <p><strong>Isha:</strong> +10 minutes</p>
             </div>
           </div>
         </div>
