@@ -91,7 +91,7 @@ export default function SignInPage() {
         )}
 
         <p className="mt-8 text-center text-gray-600 text-sm">
-          Don't have an account? <Link href="/volunteer" className="text-green-600 hover:underline">Sign Up</Link>
+          Don&apos;t have an account? <Link href="/volunteer" className="text-green-600 hover:underline">Sign Up</Link>
         </p>
       </div>
     </div>
