@@ -8,11 +8,19 @@ export default function DonatePage() {
   const [customAmount, setCustomAmount] = useState('');
   const [selectedCause, setSelectedCause] = useState('general');
   const [isRecurring, setIsRecurring] = useState(false);
+  const [recurringFrequency, setRecurringFrequency] = useState('monthly');
 
   // Get payment link from environment variables (your existing setup)
   const paymentLink = process.env.NEXT_PUBLIC_STRIPE_PAYMENT_LINK || "#";
 
   const predefinedAmounts = [25, 50, 100, 250, 500, 1000];
+  
+  const frequencyOptions = [
+    { value: 'weekly', label: 'Weekly', multiplier: 52 },
+    { value: 'monthly', label: 'Monthly', multiplier: 12 },
+    { value: 'quarterly', label: 'Quarterly', multiplier: 4 },
+    { value: 'yearly', label: 'Yearly', multiplier: 1 }
+  ];
   
   const causes = [
     {
@@ -92,7 +100,8 @@ export default function DonatePage() {
     const donationData = {
       amount,
       cause: selectedCause,
-      recurring: isRecurring
+      recurring: isRecurring,
+      frequency: isRecurring ? recurringFrequency : null
     };
     
     // Store donation data in localStorage for payment processing
@@ -220,12 +229,36 @@ export default function DonatePage() {
                       onChange={(e) => setIsRecurring(e.target.checked)}
                       className="w-5 h-5 text-green-600 border-2 border-gray-300 rounded focus:ring-green-500"
                     />
-                    <span className="text-gray-700 font-semibold">Make this a monthly recurring donation</span>
+                    <span className="text-gray-700 font-semibold">Make this a recurring donation</span>
                   </label>
+                  
                   {isRecurring && (
-                    <p className="text-sm text-green-600 mt-2 ml-8">
-                      🔄 You can cancel anytime. Thank you for your ongoing support!
-                    </p>
+                    <div className="mt-4 ml-8 space-y-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                          Choose frequency:
+                        </label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {frequencyOptions.map((option) => (
+                            <button
+                              key={option.value}
+                              type="button"
+                              onClick={() => setRecurringFrequency(option.value)}
+                              className={`p-3 rounded-lg border-2 font-semibold text-sm transition-all duration-300 ${
+                                recurringFrequency === option.value
+                                  ? 'border-green-500 bg-green-50 text-green-800'
+                                  : 'border-gray-300 hover:border-green-400 hover:bg-green-50'
+                              }`}
+                            >
+                              {option.label}
+                            </button>
+                          ))}
+                        </div>
+                      </div>
+                      <p className="text-sm text-green-600">
+                        🔄 You can cancel anytime. Thank you for your ongoing support!
+                      </p>
+                    </div>
                   )}
                 </div>
 
@@ -246,14 +279,14 @@ export default function DonatePage() {
                     <div className="flex justify-between">
                       <span>Frequency:</span>
                       <span className="font-semibold">
-                        {isRecurring ? 'Monthly' : 'One-time'}
+                        {isRecurring ? frequencyOptions.find(f => f.value === recurringFrequency)?.label : 'One-time'}
                       </span>
                     </div>
                     {isRecurring && (
                       <div className="flex justify-between text-green-700">
                         <span>Annual Impact:</span>
                         <span className="font-bold">
-                          {formatCurrency((getCurrentAmount() || 0) * 12)}
+                          {formatCurrency((getCurrentAmount() || 0) * (frequencyOptions.find(f => f.value === recurringFrequency)?.multiplier || 1))}
                         </span>
                       </div>
                     )}

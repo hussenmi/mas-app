@@ -51,36 +51,69 @@ async function initializeDatabase(db: Database) {
   `);
 }
 
-// GET - Fetch all active events for public use
-export async function GET(req: NextRequest) {
+export async function POST(req: NextRequest) {
   let db;
   try {
+    const { userId, eventId } = await req.json();
+    
+    if (!userId || !eventId) {
+      return NextResponse.json(
+        { error: 'User ID and Event ID are required' },
+        { status: 400 }
+      );
+    }
+    
     db = await getDb();
     await initializeDatabase(db);
-    const all = promisify(db.all.bind(db));
+    const run = promisify(db.run.bind(db));
+    const get = promisify(db.get.bind(db));
     
-    const events = await all(`
-      SELECT 
-        e.id,
-        e.title,
-        e.description,
-        e.date,
-        e.time,
-        e.location,
-        e.volunteers_needed,
-        e.category,
-        e.requirements,
-        e.contact_email,
-        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as volunteers_signed_up
-      FROM events e
-      WHERE e.status = 'active'
-      ORDER BY e.date ASC, e.time ASC
-    `);
+    // Check if user is already signed up for this event
+    const existingSignup = await get(
+      'SELECT id FROM volunteer_signups WHERE user_id = ? AND event_id = ?',
+      [userId, eventId]
+    );
     
-    return NextResponse.json({ events });
+    if (existingSignup) {
+      return NextResponse.json(
+        { error: 'You are already signed up for this event' },
+        { status: 400 }
+      );
+    }
+    
+    // Check if event is full
+    const event = await get(
+      'SELECT volunteers_needed, (SELECT COUNT(*) FROM volunteer_signups WHERE event_id = ? AND status = "confirmed") as current_signups FROM events WHERE id = ?',
+      [eventId, eventId]
+    );
+    
+    if (!event) {
+      return NextResponse.json(
+        { error: 'Event not found' },
+        { status: 404 }
+      );
+    }
+    
+    if (event.current_signups >= event.volunteers_needed) {
+      return NextResponse.json(
+        { error: 'This event is full' },
+        { status: 400 }
+      );
+    }
+    
+    // Create the signup
+    await run(
+      'INSERT INTO volunteer_signups (user_id, event_id, status) VALUES (?, ?, ?)',
+      [userId, eventId, 'confirmed']
+    );
+    
+    return NextResponse.json({
+      success: true,
+      message: 'Successfully signed up for the event'
+    });
     
   } catch (error) {
-    console.error('Fetch public events error:', error);
+    console.error('Volunteer signup error:', error);
     return NextResponse.json(
       { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }

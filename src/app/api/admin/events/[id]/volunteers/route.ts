@@ -22,24 +22,6 @@ async function initializeDatabase(db: Database) {
   const run = promisify(db.run.bind(db));
   
   await run(`
-    CREATE TABLE IF NOT EXISTS events (
-      id INTEGER PRIMARY KEY AUTOINCREMENT,
-      title TEXT NOT NULL,
-      description TEXT NOT NULL,
-      date TEXT NOT NULL,
-      time TEXT NOT NULL,
-      location TEXT NOT NULL,
-      volunteers_needed INTEGER NOT NULL,
-      category TEXT NOT NULL,
-      requirements TEXT,
-      contact_email TEXT NOT NULL,
-      status TEXT DEFAULT 'active',
-      created_by INTEGER,
-      created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-    )
-  `);
-  
-  await run(`
     CREATE TABLE IF NOT EXISTS volunteer_signups (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
@@ -51,36 +33,37 @@ async function initializeDatabase(db: Database) {
   `);
 }
 
-// GET - Fetch all active events for public use
-export async function GET(req: NextRequest) {
+// GET - Fetch volunteers for a specific event
+export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   let db;
   try {
+    const eventId = params.id;
+    
     db = await getDb();
     await initializeDatabase(db);
     const all = promisify(db.all.bind(db));
     
-    const events = await all(`
+    const volunteers = await all(`
       SELECT 
-        e.id,
-        e.title,
-        e.description,
-        e.date,
-        e.time,
-        e.location,
-        e.volunteers_needed,
-        e.category,
-        e.requirements,
-        e.contact_email,
-        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as volunteers_signed_up
-      FROM events e
-      WHERE e.status = 'active'
-      ORDER BY e.date ASC, e.time ASC
-    `);
+        vs.id as signup_id,
+        vs.status,
+        vs.created_at as signed_up_at,
+        u.id as user_id,
+        u.first_name,
+        u.last_name,
+        u.email,
+        u.phone,
+        u.emergency_contact
+      FROM volunteer_signups vs
+      JOIN users u ON vs.user_id = u.id
+      WHERE vs.event_id = ?
+      ORDER BY vs.created_at ASC
+    `, [eventId]);
     
-    return NextResponse.json({ events });
+    return NextResponse.json({ volunteers });
     
   } catch (error) {
-    console.error('Fetch public events error:', error);
+    console.error('Fetch event volunteers error:', error);
     return NextResponse.json(
       { error: `Internal server error: ${error instanceof Error ? error.message : 'Unknown error'}` },
       { status: 500 }

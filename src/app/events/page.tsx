@@ -5,16 +5,17 @@ import dayjs from 'dayjs';
 import { Calendar, Clock, MapPin, Users, ExternalLink, Heart, BookOpen } from 'lucide-react';
 
 interface Event {
-  id: string;
+  id: number;
   title: string;
-  description?: string;
+  description: string;
   date: string;
   time: string;
   location: string;
   category: string;
-  organizer: string;
-  capacity?: number;
-  registeredCount?: number;
+  volunteers_needed: number;
+  volunteers_signed_up: number;
+  requirements?: string;
+  contact_email: string;
 }
 
 export default function EventsPage() {
@@ -24,86 +25,28 @@ export default function EventsPage() {
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
 
   useEffect(() => {
-    // Sample events data - replace with actual API call
-    const sampleEvents: Event[] = [
-    {
-      id: '1',
-      title: 'Jumuah Prayer',
-      description: 'Weekly Friday congregational prayer with Islamic sermon.',
-      date: '2024-01-19',
-      time: '13:15',
-      location: 'Main Prayer Hall',
-      category: 'Prayer',
-      organizer: 'MAS Queens',
-      capacity: 200,
-      registeredCount: 0
-    },
-    {
-      id: '2',
-      title: 'Youth Halaqa',
-      description: 'Weekly study circle for young Muslims focusing on Quran and Hadith.',
-      date: '2024-01-20',
-      time: '18:00',
-      location: 'Education Room A',
-      category: 'Education',
-      organizer: 'Youth Committee',
-      capacity: 25,
-      registeredCount: 18
-    },
-    {
-      id: '3',
-      title: 'Community Iftar',
-      description: 'Join us for a community iftar dinner during Ramadan.',
-      date: '2024-01-21',
-      time: '18:30',
-      location: 'Community Hall',
-      category: 'Community',
-      organizer: 'MAS Queens',
-      capacity: 100,
-      registeredCount: 75
-    },
-    {
-      id: '4',
-      title: 'Monthly Food Drive',
-      description: 'Help us collect food donations for local families in need.',
-      date: '2024-01-22',
-      time: '10:00',
-      location: 'Parking Lot',
-      category: 'Service',
-      organizer: 'Social Services Committee',
-      capacity: 50,
-      registeredCount: 35
-    },
-    {
-      id: '5',
-      title: 'Sisters Circle',
-      description: 'Monthly gathering for sisters to discuss Islamic topics and community matters.',
-      date: '2024-01-23',
-      time: '19:00',
-      location: 'Education Room B',
-      category: 'Community',
-      organizer: 'Sisters Committee',
-      capacity: 30,
-      registeredCount: 22
-    }
-  ];
-
-    const fetchEvents = async () => {
-      try {
-        setLoading(true);
-        // Simulate API call delay
-        await new Promise(resolve => setTimeout(resolve, 1000));
-        setEvents(sampleEvents);
-      } catch (err: any) {
-        setError(err.message);
-      } finally {
-        setLoading(false);
-      }
-    };
     fetchEvents();
   }, []);
 
-  const categories = ['all', 'Prayer', 'Education', 'Community', 'Service'];
+  const fetchEvents = async () => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/events');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setEvents(data.events);
+      } else {
+        setError('Failed to load events. Please try again later.');
+      }
+    } catch (err: any) {
+      setError('Network error. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const categories = ['all', 'Prayer Support', 'Community Service', 'Education', 'Food Service', 'Maintenance', 'Youth Programs', 'Fundraising', 'Administrative'];
   
   const filteredEvents = selectedCategory === 'all' 
     ? events 
@@ -111,20 +54,28 @@ export default function EventsPage() {
 
   const getCategoryIcon = (category: string) => {
     switch (category) {
-      case 'Prayer': return <Calendar className="w-5 h-5" />;
+      case 'Prayer Support': return <Calendar className="w-5 h-5" />;
+      case 'Community Service': return <Users className="w-5 h-5" />;
       case 'Education': return <BookOpen className="w-5 h-5" />;
-      case 'Community': return <Users className="w-5 h-5" />;
-      case 'Service': return <Heart className="w-5 h-5" />;
+      case 'Food Service': return <Heart className="w-5 h-5" />;
+      case 'Maintenance': return <ExternalLink className="w-5 h-5" />;
+      case 'Youth Programs': return <Users className="w-5 h-5" />;
+      case 'Fundraising': return <Heart className="w-5 h-5" />;
+      case 'Administrative': return <Calendar className="w-5 h-5" />;
       default: return <Calendar className="w-5 h-5" />;
     }
   };
 
   const getCategoryColor = (category: string) => {
     switch (category) {
-      case 'Prayer': return 'from-green-500 to-green-600';
-      case 'Education': return 'from-blue-500 to-blue-600';
-      case 'Community': return 'from-purple-500 to-purple-600';
-      case 'Service': return 'from-orange-500 to-orange-600';
+      case 'Prayer Support': return 'from-green-500 to-green-600';
+      case 'Community Service': return 'from-blue-500 to-blue-600';
+      case 'Education': return 'from-purple-500 to-purple-600';
+      case 'Food Service': return 'from-orange-500 to-orange-600';
+      case 'Maintenance': return 'from-teal-500 to-teal-600';
+      case 'Youth Programs': return 'from-pink-500 to-pink-600';
+      case 'Fundraising': return 'from-yellow-500 to-yellow-600';
+      case 'Administrative': return 'from-gray-500 to-gray-600';
       default: return 'from-gray-500 to-gray-600';
     }
   };
@@ -212,30 +163,54 @@ export default function EventsPage() {
                       </div>
                       <div className="flex items-center gap-2 text-sm text-gray-600">
                         <Users className="w-4 h-4" />
-                        <span>Organized by {event.organizer}</span>
+                        <span>Contact: {event.contact_email}</span>
                       </div>
                     </div>
 
-                    {/* Capacity Info */}
-                    {event.capacity && (
-                      <div className="mb-4">
-                        <div className="flex justify-between text-sm text-gray-600 mb-1">
-                          <span>Registered</span>
-                          <span>{event.registeredCount}/{event.capacity}</span>
+                    {/* Volunteer Info */}
+                    {event.volunteers_needed > 0 && (
+                      <div className="mb-4 p-3 bg-blue-50 rounded-lg border border-blue-200">
+                        <div className="flex justify-between text-sm text-blue-800 mb-1">
+                          <span>Volunteers</span>
+                          <span>{event.volunteers_signed_up}/{event.volunteers_needed}</span>
                         </div>
-                        <div className="w-full bg-gray-200 rounded-full h-2">
+                        <div className="w-full bg-blue-200 rounded-full h-2">
                           <div 
-                            className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-300"
-                            style={{ width: `${Math.min((event.registeredCount! / event.capacity) * 100, 100)}%` }}
+                            className="bg-gradient-to-r from-blue-500 to-blue-600 h-2 rounded-full transition-all duration-300"
+                            style={{ width: `${Math.min((event.volunteers_signed_up / event.volunteers_needed) * 100, 100)}%` }}
                           ></div>
                         </div>
+                        <p className="text-xs text-blue-700 mt-1">
+                          {event.volunteers_needed - event.volunteers_signed_up > 0 
+                            ? `${event.volunteers_needed - event.volunteers_signed_up} volunteers still needed`
+                            : 'Volunteer spots filled'
+                          }
+                        </p>
                       </div>
                     )}
 
-                    {/* Action Button */}
-                    <button className="w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg">
-                      Register / Learn More
-                    </button>
+                    {/* Requirements */}
+                    {event.requirements && (
+                      <div className="mb-4">
+                        <h4 className="text-sm font-semibold text-gray-700 mb-1">Additional Info:</h4>
+                        <p className="text-xs text-gray-600">{event.requirements}</p>
+                      </div>
+                    )}
+
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
+                      <button className="flex-1 bg-gradient-to-r from-green-600 to-green-700 text-white py-2 px-4 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg text-sm">
+                        Learn More
+                      </button>
+                      {event.volunteers_needed > 0 && event.volunteers_signed_up < event.volunteers_needed && (
+                        <button 
+                          onClick={() => window.location.href = '/volunteer'}
+                          className="flex-1 bg-gradient-to-r from-blue-600 to-blue-700 text-white py-2 px-4 rounded-lg font-semibold hover:from-blue-700 hover:to-blue-800 transition-all duration-300 transform hover:scale-105 shadow-lg text-sm"
+                        >
+                          Volunteer
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
               )) : (

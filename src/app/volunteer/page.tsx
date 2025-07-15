@@ -7,115 +7,104 @@ import { Heart, Calendar, Clock, MapPin, Users, UserPlus, CheckCircle, AlertCirc
 import dayjs from 'dayjs';
 
 interface VolunteerEvent {
-  id: string;
+  id: number;
   title: string;
   description: string;
   date: string;
   time: string;
   location: string;
-  volunteersNeeded: number;
-  volunteersSignedUp: number;
+  volunteers_needed: number;
+  volunteers_signed_up: number;
   category: string;
-  requirements?: string[];
-  contact: string;
+  requirements?: string;
+  contact_email: string;
 }
 
 export default function VolunteerPage() {
   const [user, setUser] = useState<any>(null);
-  const [signedUpEvents, setSignedUpEvents] = useState<string[]>([]);
+  const [events, setEvents] = useState<VolunteerEvent[]>([]);
+  const [signedUpEvents, setSignedUpEvents] = useState<number[]>([]);
   const [message, setMessage] = useState<string>('');
-
-  const volunteerEvents: VolunteerEvent[] = [
-    {
-      id: '1',
-      title: 'Friday Jumu\'ah Setup & Cleanup',
-      description: 'Help set up chairs, prayer rugs, and clean up after Friday prayers. Great for new volunteers!',
-      date: '2024-01-19',
-      time: '12:00',
-      location: 'Main Prayer Hall',
-      volunteersNeeded: 8,
-      volunteersSignedUp: 5,
-      category: 'Prayer Support',
-      requirements: ['Punctuality', 'Physical ability to move chairs'],
-      contact: 'operations@masqueens.org'
-    },
-    {
-      id: '2',
-      title: 'Community Food Drive Coordination',
-      description: 'Organize and distribute food packages to local families in need. Help make a direct impact!',
-      date: '2024-01-22',
-      time: '09:00',
-      location: 'Community Center',
-      volunteersNeeded: 12,
-      volunteersSignedUp: 8,
-      category: 'Community Service',
-      requirements: ['Organizational skills', 'Compassionate attitude', 'Ability to lift 20+ lbs'],
-      contact: 'outreach@masqueens.org'
-    },
-    {
-      id: '3',
-      title: 'Youth Islamic Studies Teaching Assistant',
-      description: 'Assist teachers with weekend Islamic studies classes for children ages 6-12.',
-      date: '2024-01-20',
-      time: '15:00',
-      location: 'Education Wing',
-      volunteersNeeded: 4,
-      volunteersSignedUp: 2,
-      category: 'Education',
-      requirements: ['Good with children', 'Basic Islamic knowledge', 'Background check required'],
-      contact: 'education@masqueens.org'
-    },
-    {
-      id: '4',
-      title: 'Ramadan Iftar Preparation',
-      description: 'Help prepare and serve community iftar meals during Ramadan. Join our kitchen team!',
-      date: '2024-01-25',
-      time: '16:00',
-      location: 'Community Kitchen',
-      volunteersNeeded: 15,
-      volunteersSignedUp: 12,
-      category: 'Food Service',
-      requirements: ['Food handling experience preferred', 'Ability to stand for long periods'],
-      contact: 'kitchen@masqueens.org'
-    },
-    {
-      id: '5',
-      title: 'Masjid Garden Maintenance',
-      description: 'Help maintain the beautiful garden areas around the masjid. Perfect for nature lovers!',
-      date: '2024-01-21',
-      time: '10:00',
-      location: 'Masjid Grounds',
-      volunteersNeeded: 6,
-      volunteersSignedUp: 3,
-      category: 'Maintenance',
-      requirements: ['Comfortable working outdoors', 'Basic gardening knowledge helpful'],
-      contact: 'facilities@masqueens.org'
-    }
-  ];
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
     if (userData) {
-      setUser(JSON.parse(userData));
+      const user = JSON.parse(userData);
+      setUser(user);
+      fetchUserSignups(user.id);
     }
-    
-    // Load signed up events from localStorage
-    const savedSignups = localStorage.getItem('volunteerSignups');
-    if (savedSignups) {
-      setSignedUpEvents(JSON.parse(savedSignups));
-    }
+
+    fetchEvents();
   }, []);
 
-  const handleSignUp = (eventId: string) => {
+  const fetchUserSignups = async (userId: number) => {
+    try {
+      const response = await fetch(`/api/user/volunteer-signups?userId=${userId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setSignedUpEvents(data.eventIds);
+      }
+    } catch (error) {
+      console.error('Failed to fetch user signups:', error);
+    }
+  };
+
+  const fetchEvents = async () => {
+    try {
+      const response = await fetch('/api/events');
+      const data = await response.json();
+      
+      if (response.ok) {
+        // Filter to only show events that need volunteers
+        const eventsNeedingVolunteers = data.events.filter((event: VolunteerEvent) => 
+          event.volunteers_needed > 0 && event.volunteers_signed_up < event.volunteers_needed
+        );
+        setEvents(eventsNeedingVolunteers);
+      } else {
+        setMessage('Failed to load events. Please try again later.');
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again later.');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSignUp = async (eventId: number) => {
     if (!user) {
       setMessage('Please sign in to volunteer for events');
       return;
     }
 
-    const newSignups = [...signedUpEvents, eventId];
-    setSignedUpEvents(newSignups);
-    localStorage.setItem('volunteerSignups', JSON.stringify(newSignups));
-    setMessage('Successfully signed up! We will contact you with more details.');
+    try {
+      const response = await fetch('/api/volunteer/signup', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          eventId: eventId
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Refresh user's signups from database
+        fetchUserSignups(user.id);
+        setMessage('Successfully signed up! We will contact you with more details.');
+        
+        // Update event data to reflect new signup
+        fetchEvents();
+      } else {
+        setMessage(data.error || 'Failed to sign up. Please try again.');
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+    }
     
     // Clear message after 3 seconds
     setTimeout(() => setMessage(''), 3000);
@@ -153,7 +142,7 @@ export default function VolunteerPage() {
           </div>
           <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Volunteer Opportunities</h1>
           <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-            Join our community and make a meaningful impact through volunteer service
+            Help make our community events successful by volunteering your time and skills
           </p>
           {!user && (
             <div className="mt-6 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg max-w-md mx-auto">
@@ -181,11 +170,28 @@ export default function VolunteerPage() {
           </div>
         )}
 
-        {/* Volunteer Events Grid */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {volunteerEvents.map((event) => {
+        {/* Loading State */}
+        {loading ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Loading volunteer opportunities...</p>
+          </div>
+        ) : events.length === 0 ? (
+          <div className="text-center py-12">
+            <Heart className="w-12 h-12 text-gray-400 mx-auto mb-4" />
+            <h3 className="text-lg font-medium text-gray-600 mb-2">No volunteer opportunities available</h3>
+            <p className="text-gray-500">All current events have enough volunteers or don't need volunteer help.</p>
+            <p className="text-gray-500 mt-2">
+              Check out our <Link href="/events" className="text-green-600 hover:underline">upcoming events</Link> or check back later for new opportunities.
+            </p>
+          </div>
+        ) : (
+          <>
+            {/* Volunteer Events Grid */}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {events.map((event) => {
             const isSignedUp = signedUpEvents.includes(event.id);
-            const spotsLeft = event.volunteersNeeded - event.volunteersSignedUp;
+            const spotsLeft = event.volunteers_needed - event.volunteers_signed_up;
             
             return (
               <div key={event.id} className="bg-white rounded-xl shadow-lg hover:shadow-2xl transition-all duration-300 transform hover:scale-105 border border-gray-100 overflow-hidden">
@@ -222,7 +228,7 @@ export default function VolunteerPage() {
                     </div>
                     <div className="flex items-center gap-2 text-sm text-gray-600">
                       <Users className="w-4 h-4" />
-                      <span>{event.volunteersSignedUp}/{event.volunteersNeeded} volunteers</span>
+                      <span>{event.volunteers_signed_up}/{event.volunteers_needed} volunteers</span>
                     </div>
                   </div>
 
@@ -231,7 +237,7 @@ export default function VolunteerPage() {
                     <div className="w-full bg-gray-200 rounded-full h-2">
                       <div 
                         className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((event.volunteersSignedUp / event.volunteersNeeded) * 100, 100)}%` }}
+                        style={{ width: `${Math.min((event.volunteers_signed_up / event.volunteers_needed) * 100, 100)}%` }}
                       ></div>
                     </div>
                   </div>
@@ -240,21 +246,16 @@ export default function VolunteerPage() {
                   {event.requirements && (
                     <div className="mb-4">
                       <h4 className="text-sm font-semibold text-gray-700 mb-2">Requirements:</h4>
-                      <ul className="text-xs text-gray-600 space-y-1">
-                        {event.requirements.map((req, index) => (
-                          <li key={index} className="flex items-center gap-1">
-                            <span className="w-1 h-1 bg-green-500 rounded-full"></span>
-                            {req}
-                          </li>
-                        ))}
-                      </ul>
+                      <div className="text-xs text-gray-600">
+                        <p>{event.requirements}</p>
+                      </div>
                     </div>
                   )}
 
                   {/* Contact */}
                   <div className="mb-4">
                     <p className="text-xs text-gray-500">
-                      Contact: <span className="text-green-600">{event.contact}</span>
+                      Contact: <span className="text-green-600">{event.contact_email}</span>
                     </p>
                   </div>
 
@@ -281,15 +282,20 @@ export default function VolunteerPage() {
                 </div>
               </div>
             );
-          })}
-        </div>
+              })}
+            </div>
+          </>
+        )}
 
         {/* Call to Action */}
         <div className="mt-12 text-center">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-green-100 max-w-4xl mx-auto">
             <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready to Make a Difference?</h2>
             <p className="text-lg text-gray-600 mb-6">
-              Volunteering is a beautiful way to serve our community and earn rewards from Allah (SWT).
+              Volunteering is a beautiful way to serve our community and earn rewards from Allah (SWT). Help make our community events successful!
+            </p>
+            <p className="text-gray-600 mb-6">
+              Want to see all community events? Visit our <Link href="/events" className="text-green-600 hover:underline font-semibold">Events Page</Link> to see what's happening at MAS Queens.
             </p>
             {!user ? (
               <div className="space-y-4">
