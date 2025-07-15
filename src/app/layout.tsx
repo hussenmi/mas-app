@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Poppins } from "next/font/google";
 import "./globals.css";
 import EnhancedNavigation from "@/components/EnhancedNavigation";
+import Footer from "@/components/Footer";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
@@ -28,7 +29,8 @@ export default function RootLayout({
           }}
         />
         <EnhancedNavigation />
-        <main className="max-w-6xl mx-auto py-8 px-4 sm:px-6 lg:px-8">{children}</main>
+        <main className="min-h-screen">{children}</main>
+        <Footer />
       </body>
     </html>
   );
