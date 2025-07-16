@@ -48,6 +48,22 @@ interface Volunteer {
   emergency_contact: string;
 }
 
+interface RSVP {
+  rsvp_id: number;
+  status: string;
+  payment_status: string;
+  amount_paid: number;
+  rsvped_at: string;
+  auto_created_from_volunteer: number;
+  user_id: number;
+  first_name: string;
+  last_name: string;
+  email: string;
+  phone: string;
+  emergency_contact: string;
+  is_volunteer: number;
+}
+
 const EventDetailPage = () => {
   const router = useRouter();
   const params = useParams();
@@ -55,8 +71,10 @@ const EventDetailPage = () => {
   
   const [event, setEvent] = useState<Event | null>(null);
   const [volunteers, setVolunteers] = useState<Volunteer[]>([]);
+  const [rsvps, setRsvps] = useState<RSVP[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [activeTab, setActiveTab] = useState<'volunteers' | 'rsvps'>('volunteers');
 
   useEffect(() => {
     // Check admin auth
@@ -69,6 +87,7 @@ const EventDetailPage = () => {
     if (eventId) {
       fetchEventDetails();
       fetchVolunteers();
+      fetchRsvps();
     }
   }, [eventId, router]);
 
@@ -101,6 +120,21 @@ const EventDetailPage = () => {
       setError('Network error. Please try again.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchRsvps = async () => {
+    try {
+      const response = await fetch(`/api/admin/events/${eventId}/rsvps`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setRsvps(data.rsvps);
+      } else {
+        console.error('Failed to fetch RSVPs:', data.error);
+      }
+    } catch (error) {
+      console.error('Network error fetching RSVPs:', error);
     }
   };
 
@@ -180,10 +214,10 @@ const EventDetailPage = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 xl:grid-cols-5 gap-6 lg:gap-8">
           
           {/* Event Details */}
-          <div className="lg:col-span-1">
+          <div className="lg:col-span-1 xl:col-span-2">
             <div className="bg-slate-800 rounded-xl border border-slate-700 p-6">
               <h2 className="text-lg font-semibold text-white mb-4">Event Information</h2>
               
@@ -273,95 +307,246 @@ const EventDetailPage = () => {
             </div>
           </div>
 
-          {/* Volunteers List */}
-          <div className="lg:col-span-2">
+          {/* Participants Section with Tabs */}
+          <div className="lg:col-span-2 xl:col-span-3">
             <div className="bg-slate-800 rounded-xl border border-slate-700">
-              <div className="px-6 py-4 border-b border-slate-700">
-                <div className="flex items-center justify-between">
-                  <h2 className="text-lg font-semibold text-white">Registered Volunteers</h2>
-                  <div className="flex items-center gap-2 text-slate-400">
-                    <UserCheck className="w-4 h-4" />
-                    <span>{volunteers.length} volunteer{volunteers.length !== 1 ? 's' : ''}</span>
-                  </div>
+              {/* Tab Navigation */}
+              <div className="border-b border-slate-700">
+                <div className="flex">
+                  <button
+                    onClick={() => setActiveTab('volunteers')}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                      activeTab === 'volunteers'
+                        ? 'text-blue-400 border-b-2 border-blue-400 bg-slate-700/50'
+                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <UserCheck className="w-4 h-4" />
+                      <span>Volunteers</span>
+                      <span className="bg-slate-600 text-white text-xs px-2 py-1 rounded-full">
+                        {volunteers.length}
+                      </span>
+                    </div>
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('rsvps')}
+                    className={`flex-1 px-6 py-4 text-sm font-medium transition-colors ${
+                      activeTab === 'rsvps'
+                        ? 'text-green-400 border-b-2 border-green-400 bg-slate-700/50'
+                        : 'text-slate-400 hover:text-slate-300 hover:bg-slate-700/30'
+                    }`}
+                  >
+                    <div className="flex items-center justify-center gap-2">
+                      <Users className="w-4 h-4" />
+                      <span>Event RSVPs</span>
+                      <span className="bg-slate-600 text-white text-xs px-2 py-1 rounded-full">
+                        {rsvps.length}
+                      </span>
+                    </div>
+                  </button>
                 </div>
               </div>
-              
-              {volunteers.length === 0 ? (
-                <div className="text-center py-12">
-                  <Users className="w-12 h-12 text-slate-600 mx-auto mb-4" />
-                  <h3 className="text-lg font-medium text-slate-300 mb-2">No volunteers yet</h3>
-                  <p className="text-slate-400">Volunteers will appear here when they sign up for this event.</p>
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full">
-                    <thead className="bg-slate-700">
-                      <tr>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                          Volunteer
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                          Contact
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                          Emergency Contact
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                          Signed Up
-                        </th>
-                        <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
-                          Status
-                        </th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-700">
-                      {volunteers.map((volunteer) => (
-                        <tr key={volunteer.signup_id} className="hover:bg-slate-700/50">
-                          <td className="px-6 py-4">
-                            <div className="flex items-center gap-3">
-                              <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center">
-                                <User className="w-4 h-4 text-white" />
-                              </div>
-                              <div>
-                                <div className="text-sm font-medium text-white">
-                                  {volunteer.first_name} {volunteer.last_name}
-                                </div>
-                                <div className="text-sm text-slate-400">
-                                  ID: {volunteer.user_id}
-                                </div>
-                              </div>
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-white">{volunteer.email}</div>
-                            <div className="text-sm text-slate-400">{volunteer.phone}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-white">{volunteer.emergency_contact || 'Not provided'}</div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <div className="text-sm text-white">
-                              {dayjs(volunteer.signed_up_at).format('MMM D, YYYY')}
-                            </div>
-                            <div className="text-sm text-slate-400">
-                              {dayjs(volunteer.signed_up_at).format('h:mm A')}
-                            </div>
-                          </td>
-                          <td className="px-6 py-4">
-                            <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                              volunteer.status === 'confirmed' 
-                                ? 'bg-green-100 text-green-800'
-                                : 'bg-yellow-100 text-yellow-800'
-                            }`}>
-                              {volunteer.status}
-                            </span>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+
+              {/* Tab Content */}
+              <div className="min-h-[400px] lg:min-h-[500px]">
+                {activeTab === 'volunteers' ? (
+                  <>
+                    {volunteers.length === 0 ? (
+                      <div className="text-center py-16">
+                        <UserCheck className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                        <h3 className="text-xl font-medium text-slate-300 mb-2">No volunteers yet</h3>
+                        <p className="text-slate-400">Volunteers will appear here when they sign up to help with this event.</p>
+                      </div>
+                    ) : (
+                      <div className="overflow-x-auto">
+                        <table className="w-full">
+                          <thead className="bg-slate-700">
+                            <tr>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                                Volunteer
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                                Contact
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                                Emergency Contact
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                                Signed Up
+                              </th>
+                              <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                                Status
+                              </th>
+                            </tr>
+                          </thead>
+                          <tbody className="divide-y divide-slate-700">
+                            {volunteers.map((volunteer) => (
+                              <tr key={volunteer.signup_id} className="hover:bg-slate-700/50">
+                                <td className="px-6 py-4">
+                                  <div className="flex items-center gap-3">
+                                    <div className="w-10 h-10 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full flex items-center justify-center">
+                                      <User className="w-5 h-5 text-white" />
+                                    </div>
+                                    <div>
+                                      <div className="text-sm font-medium text-white">
+                                        {volunteer.first_name} {volunteer.last_name}
+                                      </div>
+                                      <div className="text-sm text-slate-400">
+                                        ID: {volunteer.user_id}
+                                      </div>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-white">{volunteer.email}</div>
+                                  <div className="text-sm text-slate-400">{volunteer.phone || 'No phone'}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-white">{volunteer.emergency_contact || 'Not provided'}</div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <div className="text-sm text-white">
+                                    {dayjs(volunteer.signed_up_at).format('MMM D, YYYY')}
+                                  </div>
+                                  <div className="text-sm text-slate-400">
+                                    {dayjs(volunteer.signed_up_at).format('h:mm A')}
+                                  </div>
+                                </td>
+                                <td className="px-6 py-4">
+                                  <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                    volunteer.status === 'confirmed' 
+                                      ? 'bg-green-100 text-green-800'
+                                      : 'bg-yellow-100 text-yellow-800'
+                                  }`}>
+                                    {volunteer.status}
+                                  </span>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    {rsvps.length === 0 ? (
+                      <div className="text-center py-16">
+                        <Users className="w-16 h-16 text-slate-600 mx-auto mb-4" />
+                        <h3 className="text-xl font-medium text-slate-300 mb-2">No RSVPs yet</h3>
+                        <p className="text-slate-400">RSVPs will appear here when people register to attend this event.</p>
+                      </div>
+                    ) : (
+                      <>
+                        <div className="p-4 bg-slate-700/50 border-b border-slate-600">
+                          <p className="text-sm text-slate-300">
+                            <span className="font-medium">Note:</span> Volunteers are automatically RSVPed to events. 
+                            <span className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded-full ml-2">Volunteer</span> indicates they're volunteering, 
+                            <span className="bg-purple-100 text-purple-800 text-xs px-2 py-1 rounded-full ml-1">Auto-RSVP</span> means RSVP was created from volunteer signup.
+                          </p>
+                        </div>
+                        <div className="overflow-x-auto">
+                          <div className="min-w-fit">
+                            <table className="w-full">
+                            <thead className="bg-slate-700">
+                              <tr>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '180px'}}>
+                                  Attendee
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '160px'}}>
+                                  Contact
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '140px'}}>
+                                  Emergency
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '100px'}}>
+                                  Payment
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '100px'}}>
+                                  RSVPed
+                                </th>
+                                <th className="px-3 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider" style={{minWidth: '90px'}}>
+                                  Status
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-700">
+                              {rsvps.map((rsvp) => (
+                                <tr key={rsvp.rsvp_id} className="hover:bg-slate-700/50">
+                                  <td className="px-3 py-3" style={{minWidth: '180px'}}>
+                                    <div className="flex items-center gap-2">
+                                      <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-green-600 rounded-full flex items-center justify-center flex-shrink-0">
+                                        <User className="w-4 h-4 text-white" />
+                                      </div>
+                                      <div className="min-w-0 flex-1">
+                                        <div className="text-sm font-medium text-white truncate">
+                                          {rsvp.first_name} {rsvp.last_name}
+                                        </div>
+                                        <div className="flex flex-wrap gap-1 mt-1">
+                                          {rsvp.is_volunteer > 0 && (
+                                            <span className="bg-blue-100 text-blue-800 text-xs px-1.5 py-0.5 rounded-full">
+                                              Vol
+                                            </span>
+                                          )}
+                                          {rsvp.auto_created_from_volunteer > 0 && (
+                                            <span className="bg-purple-100 text-purple-800 text-xs px-1.5 py-0.5 rounded-full">
+                                              Auto
+                                            </span>
+                                          )}
+                                        </div>
+                                        <div className="text-xs text-slate-400 mt-1">
+                                          ID: {rsvp.user_id}
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3" style={{minWidth: '160px'}}>
+                                    <div className="text-sm text-white break-words">{rsvp.email}</div>
+                                    <div className="text-xs text-slate-400 mt-1">{rsvp.phone || 'No phone'}</div>
+                                  </td>
+                                  <td className="px-3 py-3" style={{minWidth: '140px'}}>
+                                    <div className="text-sm text-white break-words">{rsvp.emergency_contact || 'Not provided'}</div>
+                                  </td>
+                                  <td className="px-3 py-3" style={{minWidth: '100px'}}>
+                                    <div className="text-sm text-white">
+                                      {rsvp.amount_paid > 0 ? `$${rsvp.amount_paid.toFixed(2)}` : 'Free'}
+                                    </div>
+                                    <div className={`text-xs mt-1 ${
+                                      rsvp.payment_status === 'completed' ? 'text-green-400' : 
+                                      rsvp.payment_status === 'pending' ? 'text-yellow-400' : 'text-red-400'
+                                    }`}>
+                                      {rsvp.payment_status}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3" style={{minWidth: '100px'}}>
+                                    <div className="text-sm text-white">
+                                      {dayjs(rsvp.rsvped_at).format('MMM D')}
+                                    </div>
+                                    <div className="text-xs text-slate-400 mt-1">
+                                      {dayjs(rsvp.rsvped_at).format('h:mm A')}
+                                    </div>
+                                  </td>
+                                  <td className="px-3 py-3" style={{minWidth: '90px'}}>
+                                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
+                                      rsvp.status === 'confirmed' 
+                                        ? 'bg-green-100 text-green-800'
+                                        : 'bg-yellow-100 text-yellow-800'
+                                    }`}>
+                                      {rsvp.status}
+                                    </span>
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+              </div>
             </div>
           </div>
         </div>

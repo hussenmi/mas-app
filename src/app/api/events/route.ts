@@ -33,11 +33,17 @@ async function initializeDatabase(db: Database) {
       category TEXT NOT NULL,
       requirements TEXT,
       contact_email TEXT NOT NULL,
+      price DECIMAL(10,2) DEFAULT 0,
       status TEXT DEFAULT 'active',
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP
     )
   `);
+  
+  // Add price column if it doesn't exist (for existing databases)
+  await run(`ALTER TABLE events ADD COLUMN price DECIMAL(10,2) DEFAULT 0`).catch(() => {
+    // Column already exists, ignore error
+  });
   
   await run(`
     CREATE TABLE IF NOT EXISTS volunteer_signups (
@@ -46,6 +52,21 @@ async function initializeDatabase(db: Database) {
       event_id INTEGER NOT NULL,
       status TEXT DEFAULT 'confirmed',
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      UNIQUE(user_id, event_id)
+    )
+  `);
+  
+  await run(`
+    CREATE TABLE IF NOT EXISTS event_rsvps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      event_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'confirmed',
+      payment_status TEXT DEFAULT 'pending',
+      amount_paid DECIMAL(10,2) DEFAULT 0,
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      FOREIGN KEY (event_id) REFERENCES events (id),
       UNIQUE(user_id, event_id)
     )
   `);
@@ -71,7 +92,9 @@ export async function GET(req: NextRequest) {
         e.category,
         e.requirements,
         e.contact_email,
-        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as volunteers_signed_up
+        e.price,
+        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as volunteers_signed_up,
+        (SELECT COUNT(*) FROM event_rsvps er WHERE er.event_id = e.id AND er.status = 'confirmed') as total_rsvps
       FROM events e
       WHERE e.status = 'active'
       ORDER BY e.date ASC, e.time ASC

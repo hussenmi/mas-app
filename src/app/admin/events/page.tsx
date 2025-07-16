@@ -29,6 +29,8 @@ interface Event {
   category: string;
   requirements: string;
   contact_email: string;
+  price: number;
+  total_rsvps: number;
   status: string;
   created_by_name: string;
   created_at: string;
@@ -201,9 +203,9 @@ const AdminEventsPage = () => {
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Upcoming Events</p>
+                <p className="text-slate-400 text-sm">Total RSVPs</p>
                 <p className="text-2xl font-bold text-white">
-                  {events.filter(event => dayjs(event.date).isAfter(dayjs())).length}
+                  {events.reduce((sum, event) => sum + (event.total_rsvps || 0), 0)}
                 </p>
               </div>
               <Clock className="w-8 h-8 text-yellow-500" />
@@ -243,6 +245,9 @@ const AdminEventsPage = () => {
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                       Volunteers
+                    </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
+                      RSVPs
                     </th>
                     <th className="px-6 py-3 text-left text-xs font-medium text-slate-300 uppercase tracking-wider">
                       Status
@@ -286,6 +291,16 @@ const AdminEventsPage = () => {
                             }}
                           />
                         </div>
+                      </td>
+                      <td className="px-6 py-4">
+                        <div className="text-sm text-white">
+                          {event.total_rsvps || 0} RSVPs
+                        </div>
+                        {event.price > 0 && (
+                          <div className="text-xs text-slate-400">
+                            ${event.price.toFixed(2)} each
+                          </div>
+                        )}
                       </td>
                       <td className="px-6 py-4">
                         <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusColor(event)}`}>

@@ -24,20 +24,46 @@ interface AdminUser {
   role: string;
 }
 
+interface DashboardStats {
+  totalUsers: number;
+  activeEvents: number;
+  totalVolunteers: number;
+  monthlyDonations: number;
+}
+
 const AdminDashboardPage = () => {
   const router = useRouter();
   const [admin, setAdmin] = useState<AdminUser | null>(null);
   const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState<DashboardStats>({
+    totalUsers: 0,
+    activeEvents: 0,
+    totalVolunteers: 0,
+    monthlyDonations: 0
+  });
 
   useEffect(() => {
     const adminData = localStorage.getItem('admin');
     if (adminData) {
       setAdmin(JSON.parse(adminData));
+      fetchStats();
     } else {
       router.push('/admin/signin');
     }
     setLoading(false);
   }, [router]);
+
+  const fetchStats = async () => {
+    try {
+      const response = await fetch('/api/admin/stats');
+      const data = await response.json();
+      if (response.ok) {
+        setStats(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch admin stats:', error);
+    }
+  };
 
   const handleLogout = () => {
     localStorage.removeItem('admin');
@@ -67,7 +93,7 @@ const AdminDashboardPage = () => {
       icon: Calendar,
       href: '/admin/events',
       color: 'from-blue-600 to-blue-700',
-      stats: '12 Active Events'
+      stats: `${stats.activeEvents} Active Events`
     },
     {
       title: 'User Management',
@@ -75,7 +101,7 @@ const AdminDashboardPage = () => {
       icon: Users,
       href: '/admin/users',
       color: 'from-green-600 to-green-700',
-      stats: '248 Users'
+      stats: `${stats.totalUsers} Users`
     },
     {
       title: 'Donations',
@@ -83,7 +109,7 @@ const AdminDashboardPage = () => {
       icon: DollarSign,
       href: '/admin/donations',
       color: 'from-yellow-600 to-yellow-700',
-      stats: '$12,450 This Month'
+      stats: `$${stats.monthlyDonations.toLocaleString()} This Month`
     },
     {
       title: 'Announcements',
@@ -158,12 +184,12 @@ const AdminDashboardPage = () => {
         </div>
 
         {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Total Users</p>
-                <p className="text-2xl font-bold text-white">248</p>
+                <p className="text-2xl font-bold text-white">{stats.totalUsers}</p>
               </div>
               <UserCheck className="w-8 h-8 text-green-500" />
             </div>
@@ -173,7 +199,7 @@ const AdminDashboardPage = () => {
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-slate-400 text-sm">Active Events</p>
-                <p className="text-2xl font-bold text-white">12</p>
+                <p className="text-2xl font-bold text-white">{stats.activeEvents}</p>
               </div>
               <Calendar className="w-8 h-8 text-blue-500" />
             </div>
@@ -182,20 +208,10 @@ const AdminDashboardPage = () => {
           <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-slate-400 text-sm">Monthly Donations</p>
-                <p className="text-2xl font-bold text-white">$12.4k</p>
+                <p className="text-slate-400 text-sm">Total Volunteers</p>
+                <p className="text-2xl font-bold text-white">{stats.totalVolunteers}</p>
               </div>
-              <DollarSign className="w-8 h-8 text-yellow-500" />
-            </div>
-          </div>
-          
-          <div className="bg-slate-800 rounded-xl p-6 border border-slate-700">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-slate-400 text-sm">Prayer Time</p>
-                <p className="text-2xl font-bold text-white">Dhuhr</p>
-              </div>
-              <Clock className="w-8 h-8 text-purple-500" />
+              <Users className="w-8 h-8 text-purple-500" />
             </div>
           </div>
         </div>

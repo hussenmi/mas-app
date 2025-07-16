@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Heart, Target, Users, Building, BookOpen, Utensils, DollarSign, CreditCard } from 'lucide-react';
+import { HandHeart, Target, Users, Building, BookOpen, Utensils, DollarSign, CreditCard } from 'lucide-react';
 
 export default function DonatePage() {
   const [selectedAmount, setSelectedAmount] = useState(50);
@@ -120,7 +120,7 @@ export default function DonatePage() {
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-green-100">
             <div className="flex justify-center mb-6">
               <div className="bg-gradient-to-r from-green-600 to-green-700 p-4 rounded-full">
-                <Heart className="w-12 h-12 text-white" />
+                <HandHeart className="w-12 h-12 text-white" />
               </div>
             </div>
             <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">

@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Clock, MapPin, Phone, Mail, Calendar, Heart, Users, BookOpen, Home, Compass, User } from 'lucide-react';
+import { Menu, X, Clock, MapPin, Phone, Mail, Calendar, Heart, HandHeart, Users, BookOpen, Home, Compass, User } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 
@@ -157,7 +157,7 @@ const EnhancedNavigation = () => {
                 </Link>
               )}
               <Link href="/donate" className="flex items-center gap-2 px-6 py-3 text-white bg-gradient-to-r from-green-600 to-green-700 font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg">
-                <Heart className="w-5 h-5" />
+                <HandHeart className="w-5 h-5" />
                 Donate
               </Link>
             </div>
@@ -208,7 +208,7 @@ const EnhancedNavigation = () => {
                     </Link>
                   )}
                   <Link href="/donate" className="w-full flex items-center justify-center gap-2 px-4 py-3 text-white bg-gradient-to-r from-green-600 to-green-700 font-semibold rounded-xl hover:from-green-700 hover:to-green-800 transition-colors">
-                    <Heart className="w-5 h-5" />
+                    <HandHeart className="w-5 h-5" />
                     Donate
                   </Link>
                 </div>

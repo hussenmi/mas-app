@@ -31,7 +31,8 @@ const CreateEventPage = () => {
     volunteersNeeded: '',
     category: 'Community Service',
     requirements: '',
-    contactEmail: ''
+    contactEmail: '',
+    price: ''
   });
 
   const categories = [
@@ -75,6 +76,7 @@ const CreateEventPage = () => {
         body: JSON.stringify({
           ...formData,
           volunteersNeeded: parseInt(formData.volunteersNeeded),
+          price: parseFloat(formData.price) || 0,
           createdBy: admin?.id
         }),
       });
@@ -302,6 +304,27 @@ const CreateEventPage = () => {
                     placeholder="e.g., operations@masqueens.org"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label htmlFor="price" className="block text-sm font-medium text-slate-300 mb-2">
+                  Event Price (Optional)
+                </label>
+                <div className="relative">
+                  <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400">$</span>
+                  <input
+                    type="number"
+                    id="price"
+                    name="price"
+                    min="0"
+                    step="0.01"
+                    value={formData.price}
+                    onChange={handleChange}
+                    className="w-full pl-8 pr-4 py-3 bg-slate-700 border border-slate-600 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 text-white placeholder-slate-400"
+                    placeholder="0.00"
+                  />
+                </div>
+                <p className="text-xs text-slate-400 mt-1">Leave empty or set to 0 for free events</p>
               </div>
 
               <div className="md:col-span-2">

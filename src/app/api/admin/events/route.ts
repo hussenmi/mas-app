@@ -44,6 +44,7 @@ async function initializeDatabase(db: Database) {
       category TEXT NOT NULL,
       requirements TEXT,
       contact_email TEXT NOT NULL,
+      price DECIMAL(10,2) DEFAULT 0,
       status TEXT DEFAULT 'active',
       created_by INTEGER,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
@@ -51,12 +52,32 @@ async function initializeDatabase(db: Database) {
     )
   `);
   
+  // Add price column if it doesn't exist (for existing databases)
+  await run(`ALTER TABLE events ADD COLUMN price DECIMAL(10,2) DEFAULT 0`).catch(() => {
+    // Column already exists, ignore error
+  });
+  
   await run(`
     CREATE TABLE IF NOT EXISTS volunteer_signups (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
       user_id INTEGER NOT NULL,
       event_id INTEGER NOT NULL,
       status TEXT DEFAULT 'confirmed',
+      created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+      FOREIGN KEY (user_id) REFERENCES users (id),
+      FOREIGN KEY (event_id) REFERENCES events (id),
+      UNIQUE(user_id, event_id)
+    )
+  `);
+  
+  await run(`
+    CREATE TABLE IF NOT EXISTS event_rsvps (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      user_id INTEGER NOT NULL,
+      event_id INTEGER NOT NULL,
+      status TEXT DEFAULT 'confirmed',
+      payment_status TEXT DEFAULT 'pending',
+      amount_paid DECIMAL(10,2) DEFAULT 0,
       created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
       FOREIGN KEY (user_id) REFERENCES users (id),
       FOREIGN KEY (event_id) REFERENCES events (id),
@@ -77,7 +98,8 @@ export async function GET(req: NextRequest) {
       SELECT 
         e.*,
         a.first_name || ' ' || a.last_name as created_by_name,
-        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as actual_signups
+        (SELECT COUNT(*) FROM volunteer_signups vs WHERE vs.event_id = e.id AND vs.status = 'confirmed') as actual_signups,
+        (SELECT COUNT(*) FROM event_rsvps er WHERE er.event_id = e.id AND er.status = 'confirmed') as total_rsvps
       FROM events e
       LEFT JOIN admin_users a ON e.created_by = a.id
       WHERE e.status = 'active'
@@ -113,6 +135,7 @@ export async function POST(req: NextRequest) {
       category,
       requirements,
       contactEmail,
+      price,
       createdBy
     } = await req.json();
     
@@ -130,11 +153,11 @@ export async function POST(req: NextRequest) {
     await run(`
       INSERT INTO events (
         title, description, date, time, location, volunteers_needed, 
-        category, requirements, contact_email, created_by
-      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        category, requirements, contact_email, price, created_by
+      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `, [
       title, description, date, time, location, volunteersNeeded,
-      category, requirements || '', contactEmail, createdBy
+      category, requirements || '', contactEmail, price || 0, createdBy
     ]);
     
     return NextResponse.json({

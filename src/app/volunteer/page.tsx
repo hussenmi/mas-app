@@ -3,8 +3,9 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { Heart, Calendar, Clock, MapPin, Users, UserPlus, CheckCircle, AlertCircle } from 'lucide-react';
+import { Heart, Calendar, Clock, MapPin, Users, UserPlus, CheckCircle, AlertCircle, UserMinus } from 'lucide-react';
 import dayjs from 'dayjs';
+import CancellationModal from '@/components/CancellationModal';
 
 interface VolunteerEvent {
   id: number;
@@ -26,6 +27,16 @@ export default function VolunteerPage() {
   const [signedUpEvents, setSignedUpEvents] = useState<number[]>([]);
   const [message, setMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [cancellationModal, setCancellationModal] = useState<{
+    isOpen: boolean;
+    eventId: number;
+    eventTitle: string;
+  }>({
+    isOpen: false,
+    eventId: 0,
+    eventTitle: ''
+  });
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     const userData = localStorage.getItem('user');
@@ -95,7 +106,13 @@ export default function VolunteerPage() {
       if (response.ok) {
         // Refresh user's signups from database
         fetchUserSignups(user.id);
-        setMessage('Successfully signed up! We will contact you with more details.');
+        
+        // Display success message with Islamic quote if provided
+        let successMessage = data.message || 'Successfully signed up! We will contact you with more details.';
+        if (data.islamicQuote) {
+          successMessage += `\n\n"${data.islamicQuote.english}" - ${data.islamicQuote.reference}`;
+        }
+        setMessage(successMessage);
         
         // Update event data to reflect new signup
         fetchEvents();
@@ -106,8 +123,57 @@ export default function VolunteerPage() {
       setMessage('Network error. Please try again.');
     }
     
-    // Clear message after 3 seconds
-    setTimeout(() => setMessage(''), 3000);
+    // Clear message after 8 seconds for better readability
+    setTimeout(() => setMessage(''), 8000);
+  };
+
+  const handleCancelSignup = (eventId: number, eventTitle: string) => {
+    setCancellationModal({
+      isOpen: true,
+      eventId,
+      eventTitle
+    });
+  };
+
+  const confirmCancellation = async () => {
+    if (!user) return;
+
+    setCancelLoading(true);
+    try {
+      const response = await fetch('/api/volunteer/cancel', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          userId: user.id,
+          eventId: cancellationModal.eventId
+        }),
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        // Refresh user's signups and events
+        fetchUserSignups(user.id);
+        fetchEvents();
+        setMessage(data.message);
+        setCancellationModal({ isOpen: false, eventId: 0, eventTitle: '' });
+      } else {
+        setMessage(data.error || 'Failed to cancel signup. Please try again.');
+        // Close modal even on error to prevent stuck state
+        setCancellationModal({ isOpen: false, eventId: 0, eventTitle: '' });
+      }
+    } catch (error) {
+      setMessage('Network error. Please try again.');
+      // Close modal even on network error to prevent stuck state
+      setCancellationModal({ isOpen: false, eventId: 0, eventTitle: '' });
+    } finally {
+      setCancelLoading(false);
+    }
+    
+    // Clear message after 5 seconds
+    setTimeout(() => setMessage(''), 5000);
   };
 
   const getCategoryIcon = (category: string) => {
@@ -140,12 +206,12 @@ export default function VolunteerPage() {
           <div className="w-16 h-16 bg-gradient-to-br from-green-600 to-green-700 rounded-xl flex items-center justify-center mx-auto mb-4 shadow-lg">
             <Heart className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-800 mb-4">Volunteer Opportunities</h1>
-          <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+          <h1 className="text-3xl sm:text-4xl md:text-5xl font-bold text-gray-800 mb-4">Volunteer Opportunities</h1>
+          <p className="text-lg sm:text-xl text-gray-600 max-w-2xl mx-auto px-4 sm:px-0">
             Help make our community events successful by volunteering your time and skills
           </p>
           {!user && (
-            <div className="mt-6 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg max-w-md mx-auto">
+            <div className="mt-6 bg-blue-100 border border-blue-400 text-blue-700 px-4 py-3 rounded-lg max-w-md mx-auto sm:mx-auto">
               <p className="flex items-center gap-2">
                 <AlertCircle className="w-5 h-5" />
                 <Link href="/signin" className="font-semibold hover:underline">Sign in</Link> to volunteer for events
@@ -156,16 +222,61 @@ export default function VolunteerPage() {
 
         {/* Message Display */}
         {message && (
-          <div className="mb-8 max-w-md mx-auto">
-            <div className={`border px-4 py-3 rounded-lg ${
+          <div className="mb-8 max-w-2xl mx-auto px-4 sm:px-0">
+            <div className={`border rounded-xl shadow-lg ${
               message.includes('Successfully') 
-                ? 'bg-green-100 border-green-400 text-green-700'
+                ? 'bg-gradient-to-br from-green-50 to-green-100 border-green-300'
                 : 'bg-red-100 border-red-400 text-red-700'
             }`}>
-              <p className="flex items-center gap-2">
-                <CheckCircle className="w-5 h-5" />
-                {message}
-              </p>
+              {message.includes('Successfully') ? (
+                <div className="p-6">
+                  {/* Success Header */}
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center">
+                      <CheckCircle className="w-6 h-6 text-white" />
+                    </div>
+                    <div>
+                      <h3 className="text-xl font-bold text-green-800">جزاک اللہ خیراً</h3>
+                      <p className="text-green-700 font-medium">May Allah reward you with good!</p>
+                    </div>
+                  </div>
+                  
+                  {/* Success Message */}
+                  <div className="mb-6">
+                    <p className="text-green-800 font-medium text-lg leading-relaxed">
+                      {message.split('\n')[0]}
+                    </p>
+                  </div>
+                  
+                  {/* Islamic Quote Section */}
+                  {message.includes('"') && (
+                    <div className="bg-white/70 rounded-lg p-4 border-l-4 border-green-600">
+                      <div className="text-center">
+                        <div className="text-lg font-bold text-green-800 mb-2 leading-relaxed">
+                          {message.match(/"([^"]+)"/)?.[1]}
+                        </div>
+                        <div className="text-sm text-green-600 font-medium">
+                          — {message.match(/- ([^\n]+)/)?.[1]}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {/* Bottom Message */}
+                  <div className="mt-4 text-center">
+                    <p className="text-sm text-green-700">
+                      Your volunteer signup has been confirmed. We'll contact you with more details.
+                    </p>
+                  </div>
+                </div>
+              ) : (
+                <div className="px-4 py-3">
+                  <p className="flex items-center gap-2">
+                    <CheckCircle className="w-5 h-5" />
+                    {message}
+                  </p>
+                </div>
+              )}
             </div>
           </div>
         )}
@@ -188,7 +299,7 @@ export default function VolunteerPage() {
         ) : (
           <>
             {/* Volunteer Events Grid */}
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-6">
               {events.map((event) => {
             const isSignedUp = signedUpEvents.includes(event.id);
             const spotsLeft = event.volunteers_needed - event.volunteers_signed_up;
@@ -201,9 +312,6 @@ export default function VolunteerPage() {
                     <div className="flex items-center gap-2">
                       {getCategoryIcon(event.category)}
                       <span className="text-sm font-medium">{event.category}</span>
-                    </div>
-                    <div className="bg-white/20 px-2 py-1 rounded-full text-xs">
-                      {spotsLeft} spots left
                     </div>
                   </div>
                 </div>
@@ -226,20 +334,6 @@ export default function VolunteerPage() {
                       <MapPin className="w-4 h-4" />
                       <span>{event.location}</span>
                     </div>
-                    <div className="flex items-center gap-2 text-sm text-gray-600">
-                      <Users className="w-4 h-4" />
-                      <span>{event.volunteers_signed_up}/{event.volunteers_needed} volunteers</span>
-                    </div>
-                  </div>
-
-                  {/* Progress Bar */}
-                  <div className="mb-4">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-300"
-                        style={{ width: `${Math.min((event.volunteers_signed_up / event.volunteers_needed) * 100, 100)}%` }}
-                      ></div>
-                    </div>
                   </div>
 
                   {/* Requirements */}
@@ -261,9 +355,18 @@ export default function VolunteerPage() {
 
                   {/* Action Button */}
                   {isSignedUp ? (
-                    <div className="w-full bg-green-100 text-green-800 py-3 px-4 rounded-lg font-semibold text-center flex items-center justify-center gap-2">
-                      <CheckCircle className="w-4 h-4" />
-                      Signed Up!
+                    <div className="space-y-3">
+                      <div className="w-full bg-green-100 text-green-800 py-3 px-4 rounded-lg font-semibold text-center flex items-center justify-center gap-2">
+                        <CheckCircle className="w-4 h-4" />
+                        Signed Up!
+                      </div>
+                      <button
+                        onClick={() => handleCancelSignup(event.id, event.title)}
+                        className="w-full py-2 px-4 rounded-lg font-medium transition-all duration-300 bg-red-50 text-red-700 border border-red-200 hover:bg-red-100 hover:border-red-300 flex items-center justify-center gap-2"
+                      >
+                        <UserMinus className="w-4 h-4" />
+                        Cancel Signup
+                      </button>
                     </div>
                   ) : (
                     <button 
@@ -288,9 +391,9 @@ export default function VolunteerPage() {
         )}
 
         {/* Call to Action */}
-        <div className="mt-12 text-center">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-green-100 max-w-4xl mx-auto">
-            <h2 className="text-3xl font-bold text-gray-800 mb-4">Ready to Make a Difference?</h2>
+        <div className="mt-8 sm:mt-12 text-center px-4 sm:px-0">
+          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8 border border-green-100 max-w-4xl mx-auto">
+            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Ready to Make a Difference?</h2>
             <p className="text-lg text-gray-600 mb-6">
               Volunteering is a beautiful way to serve our community and earn rewards from Allah (SWT). Help make our community events successful!
             </p>
@@ -316,6 +419,16 @@ export default function VolunteerPage() {
           </div>
         </div>
       </div>
+
+      {/* Cancellation Modal */}
+      <CancellationModal
+        isOpen={cancellationModal.isOpen}
+        onClose={() => setCancellationModal({ isOpen: false, eventId: 0, eventTitle: '' })}
+        onConfirm={confirmCancellation}
+        type="volunteer"
+        eventTitle={cancellationModal.eventTitle}
+        loading={cancelLoading}
+      />
     </div>
   );
 }

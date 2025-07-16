@@ -1,6 +1,7 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import dayjs from 'dayjs';
+import { cache } from '@/lib/cache';
 
 const BASE_URL = 'http://api.aladhan.com/v1/timingsByAddress';
 const MAS_QUEENS_ADDRESS = '46-01 20th Ave, Astoria, NY 11105, US';
@@ -43,13 +44,24 @@ export async function GET(req: NextRequest) {
     const day = String(today.getDate()).padStart(2, '0');
     const month = String(today.getMonth() + 1).padStart(2, '0');
     const year = today.getFullYear();
+    const dateKey = `${day}-${month}-${year}`;
     
-    const url = `${BASE_URL}?address=${encodeURIComponent(MAS_QUEENS_ADDRESS)}&method=${METHOD}&date=${day}-${month}-${year}`;
+    // Check cache first (24 hour TTL for prayer times)
+    const cacheKey = `prayer-times-${dateKey}`;
+    const cachedData = cache.get(cacheKey);
+    
+    if (cachedData) {
+      console.log('Returning cached prayer times');
+      return NextResponse.json(cachedData);
+    }
+    
+    console.log('Fetching fresh prayer times from API');
+    const url = `${BASE_URL}?address=${encodeURIComponent(MAS_QUEENS_ADDRESS)}&method=${METHOD}&date=${dateKey}`;
     
     const response = await fetch(url, { 
-      cache: 'no-store',
+      next: { revalidate: 86400 }, // Cache for 24 hours
       headers: {
-        'Cache-Control': 'no-cache'
+        'Cache-Control': 'max-age=86400'
       }
     });
     
@@ -73,13 +85,18 @@ export async function GET(req: NextRequest) {
     
     const iqamaTimes = calculateIqamaTimes(prayerTimes);
     
-    return NextResponse.json({
+    const responseData = {
       prayerTimes,
       iqamaTimes,
-      date: `${day}-${month}-${year}`,
+      date: dateKey,
       location: 'Astoria, Queens, NY',
       method: 'ISNA'
-    });
+    };
+    
+    // Cache the response for 24 hours (86400 seconds)
+    cache.set(cacheKey, responseData, 86400);
+    
+    return NextResponse.json(responseData);
     
   } catch (error) {
     console.error('Prayer times API error:', error);

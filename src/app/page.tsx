@@ -1,12 +1,13 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, MapPin, Heart, Users, BookOpen, ChevronRight, Moon, Sun, Sunset } from 'lucide-react';
+import { Clock, Calendar, MapPin, Heart, HandHeart, Users, BookOpen, ChevronRight, Moon, Sun, Sunset } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
 import customParseFormat from 'dayjs/plugin/customParseFormat';
 import HijriDate from 'hijri-date';
+import { PerformanceIndicator } from '@/components/PerformanceIndicator';
 
 dayjs.extend(duration);
 dayjs.extend(customParseFormat);
@@ -46,81 +47,45 @@ interface NextPrayer {
   countdown: string;
 }
 
-const PrayerRow = ({ name, time, prayerData, nextPrayer, formatTime, renderIqamaTime, currentTime }: { 
+const PrayerRow = ({ name, time, prayerData, nextPrayer, formatTime, renderIqamaTime }: { 
   name: string; 
   time: string; 
   prayerData: PrayerData | null;
   nextPrayer: NextPrayer;
   formatTime: (time: string) => string;
   renderIqamaTime: (prayerName: string, athanTime: string) => string;
-  currentTime: Date;
 }) => {
   const IconComponent = PRAYER_ICONS[name] || Clock;
   const isNext = nextPrayer?.name === name;
   
-  // Check if current time is between athan and iqama
-  const isNow = () => {
-    const now = dayjs();
-    const today = now.format('YYYY-MM-DD');
-    
-    // Parse athan time
-    const athanTime = dayjs(`${today} ${time}`, 'YYYY-MM-DD HH:mm');
-    
-    // Calculate iqama time
-    const IQAMA_ADJUSTMENTS: { [key: string]: number } = {
-      Fajr: 20, Dhuhr: 10, Asr: 10, Maghrib: 5, Isha: 10,
-    };
-    const adjustment = IQAMA_ADJUSTMENTS[name] || 0;
-    
-    let iqamaTime;
-    if (prayerData?.iqamaTimes?.[name]) {
-      iqamaTime = dayjs(`${today} ${prayerData.iqamaTimes[name]}`, 'YYYY-MM-DD HH:mm');
-    } else {
-      iqamaTime = athanTime.add(adjustment, 'minute');
-    }
-    
-    // Check if current time is between athan and iqama
-    return now.isAfter(athanTime) && now.isBefore(iqamaTime);
-  };
-  
-  const showNow = isNow();
-  
   return (
     <div className={`grid grid-cols-4 gap-4 items-center py-4 px-6 rounded-xl transition-all duration-300 ${
-      showNow
-        ? 'bg-gradient-to-r from-orange-100 to-orange-200 border-2 border-orange-400 shadow-lg transform scale-105'
-        : isNext 
+        isNext 
         ? 'bg-gradient-to-r from-green-100 to-green-200 border-2 border-green-400 shadow-lg transform scale-105' 
         : 'bg-white/70 hover:bg-white/90 border border-green-100'
     }`}>
       <div className="flex items-center gap-3">
-        <IconComponent className={`w-6 h-6 ${showNow ? 'text-orange-700' : isNext ? 'text-green-700' : 'text-green-600'}`} />
-        <span className={`text-lg font-semibold ${showNow ? 'text-orange-800' : isNext ? 'text-green-800' : 'text-gray-700'}`}>
+        <IconComponent className={`w-6 h-6 ${isNext ? 'text-green-700' : 'text-green-600'}`} />
+        <span className={`text-lg font-semibold ${isNext ? 'text-green-800' : 'text-gray-700'}`}>
           {name}
         </span>
-        {showNow && <span className="text-xs bg-orange-600 text-white px-2 py-1 rounded-full">NOW</span>}
-        {isNext && !showNow && <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">NEXT</span>}
+        {isNext && <span className="text-xs bg-green-600 text-white px-2 py-1 rounded-full">NEXT</span>}
       </div>
       
       <div className="text-center">
-        <span className={`text-xl font-bold ${showNow ? 'text-orange-800' : isNext ? 'text-green-800' : 'text-gray-800'}`}>
+        <span className={`text-xl font-bold ${isNext ? 'text-green-800' : 'text-gray-800'}`}>
           {formatTime(time)}
         </span>
       </div>
       
       <div className="text-center">
-        <span className={`text-lg font-semibold ${showNow ? 'text-orange-700' : isNext ? 'text-green-700' : 'text-green-600'}`}>
+        <span className={`text-lg font-semibold ${isNext ? 'text-green-700' : 'text-green-600'}`}>
           {renderIqamaTime(name, time)}
         </span>
       </div>
       
       <div className="text-right">
-        {showNow && (
-          <div className="text-sm">
-            <div className="text-orange-700 font-semibold">NOW</div>
-          </div>
-        )}
-        {isNext && !showNow && (
+        {isNext && (
           <div className="text-sm">
             <div className="text-green-700 font-semibold">in {nextPrayer.countdown}</div>
           </div>
@@ -131,7 +96,6 @@ const PrayerRow = ({ name, time, prayerData, nextPrayer, formatTime, renderIqama
 };
 
 const HomePage = () => {
-  const [currentTime, setCurrentTime] = useState<Date>(new Date());
   const [prayerData, setPrayerData] = useState<PrayerData | null>(null);
   const [nextPrayer, setNextPrayer] = useState<NextPrayer>({ name: '', time: '', countdown: '' });
   const [currentVerse, setCurrentVerse] = useState<number>(0);
@@ -140,6 +104,7 @@ const HomePage = () => {
   const [user, setUser] = useState<any>(null);
   const [mounted, setMounted] = useState<boolean>(false);
   const [islamicDate, setIslamicDate] = useState('');
+  const [announcements, setAnnouncements] = useState<any[]>([]);
 
   const verses = [
     { arabic: 'وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا', english: 'And whoever saves a life, it is as if he has saved all of mankind.', reference: 'Quran 5:32' },
@@ -154,7 +119,85 @@ const HomePage = () => {
     if (userData) {
       setUser(JSON.parse(userData));
     }
+    fetchAnnouncements();
+    fetchIslamicDateOptimized();
   }, []);
+
+  // Fetch announcements with client-side caching
+  const fetchAnnouncements = async () => {
+    try {
+      // Check localStorage cache first (5 minute TTL)
+      const cacheKey = 'announcements-cache';
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const fiveMinutes = 5 * 60 * 1000;
+        if (Date.now() - timestamp < fiveMinutes) {
+          setAnnouncements(data.announcements);
+          return;
+        }
+      }
+
+      const response = await fetch('/api/announcements');
+      const data = await response.json();
+      if (response.ok) {
+        setAnnouncements(data.announcements);
+        // Cache in localStorage
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to fetch announcements:', error);
+    }
+  };
+
+  // Optimized Islamic date fetching
+  const fetchIslamicDateOptimized = async () => {
+    try {
+      // Create date-specific cache key (matches server-side logic)
+      const today = new Date();
+      const day = String(today.getDate()).padStart(2, '0');
+      const month = String(today.getMonth() + 1).padStart(2, '0');
+      const year = today.getFullYear();
+      const dateKey = `${day}-${month}-${year}`;
+      const cacheKey = `islamic-date-cache-${dateKey}`;
+      
+      // Check localStorage cache for today's date
+      const cached = localStorage.getItem(cacheKey);
+      if (cached) {
+        const { data, timestamp } = JSON.parse(cached);
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        if (Date.now() - timestamp < twentyFourHours) {
+          setIslamicDate(data.islamicDate);
+          return;
+        }
+      }
+
+      const response = await fetch('/api/islamic-date');
+      const data = await response.json();
+      if (response.ok && data.islamicDate) {
+        setIslamicDate(data.islamicDate);
+        // Cache in localStorage with date-specific key
+        localStorage.setItem(cacheKey, JSON.stringify({
+          data,
+          timestamp: Date.now()
+        }));
+        
+        // Clean up old cache entries to prevent localStorage bloat
+        for (let i = 0; i < localStorage.length; i++) {
+          const key = localStorage.key(i);
+          if (key?.startsWith('islamic-date-cache-') && key !== cacheKey) {
+            localStorage.removeItem(key);
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to fetch Islamic date:', error);
+      setIslamicDate('Islamic Date Unavailable');
+    }
+  };
 
   // Fetch prayer times from your existing API
   useEffect(() => {
@@ -224,7 +267,6 @@ const HomePage = () => {
     // Debug: verify timer effect is running
     console.log('timer effect ran');
     const timer = setInterval(() => {
-      setCurrentTime(new Date());
       if (prayerData?.prayerTimes) {
         calculateNextPrayer(prayerData.prayerTimes);
       }
@@ -239,56 +281,6 @@ const HomePage = () => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [prayerData]);
 
-  // Islamic date calculation using API
-  useEffect(() => {
-    setMounted(true);
-    const fetchIslamicDate = async () => {
-      try {
-        // Use the same aladhan API that we use for prayer times to get accurate Islamic date
-        const today = new Date();
-        const day = String(today.getDate()).padStart(2, '0');
-        const month = String(today.getMonth() + 1).padStart(2, '0');
-        const year = today.getFullYear();
-        
-        const response = await fetch(`http://api.aladhan.com/v1/gToH/${day}-${month}-${year}`);
-        const data = await response.json();
-        
-        if (data.code === 200 && data.data && data.data.hijri) {
-          const hijriData = data.data.hijri;
-          const formattedDate = `${hijriData.day} ${hijriData.month.en} ${hijriData.year} AH`;
-          setIslamicDate(formattedDate);
-        } else {
-          throw new Error('Failed to fetch Islamic date from API');
-        }
-      } catch (error) {
-        console.error('Error fetching Islamic date:', error);
-        // Fallback calculation with manual adjustment
-        try {
-          const hijri = new HijriDate();
-          const hijriMonths = [
-            'Muharram', 'Safar', 'Rabi\' al-Awwal', 'Rabi\' al-Thani', 
-            'Jumada al-Awwal', 'Jumada al-Thani',
-            'Rajab', 'Sha\'ban', 'Ramadan', 'Shawwal', 
-            'Dhu al-Qi\'dah', 'Dhu al-Hijjah'
-          ];
-          
-          const hijriDay = hijri.getDate();
-          const hijriMonth = hijri.getMonth();
-          const hijriYear = hijri.getFullYear();
-          
-          const formattedDate = `${hijriDay} ${hijriMonths[hijriMonth]} ${hijriYear} AH`;
-          setIslamicDate(formattedDate);
-        } catch (fallbackError) {
-          console.error('Fallback Islamic date calculation failed:', fallbackError);
-          setIslamicDate('Islamic Date Unavailable');
-        }
-      }
-    };
-    
-    if (typeof window !== 'undefined') {
-      fetchIslamicDate();
-    }
-  }, []);
 
 
   const formatTime = (time: string) => {
@@ -431,7 +423,6 @@ const HomePage = () => {
                   nextPrayer={nextPrayer}
                   formatTime={formatTime}
                   renderIqamaTime={renderIqamaTime}
-                  currentTime={currentTime}
                 />
               ))
             )}
@@ -448,7 +439,7 @@ const HomePage = () => {
             </Link>
           </div>
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
-            <Heart className="w-12 h-12 text-green-700 mb-4" />
+            <HandHeart className="w-12 h-12 text-green-700 mb-4" />
             <h3 className="text-xl font-bold text-gray-800 mb-3">Support Your Masjid</h3>
             <p className="text-gray-600 mb-4">Your donations help maintain our sacred space and support community programs.</p>
             <Link href="/donate" className="bg-green-700 text-white px-6 py-2 rounded-lg hover:bg-green-800 transition-colors inline-block">
@@ -465,20 +456,24 @@ const HomePage = () => {
           </div>
         </div>
         {/* Announcements Ticker */}
-        <div className="bg-gradient-to-r from-green-700 to-green-800 text-white rounded-2xl p-4 shadow-xl">
-          <div className="flex items-center gap-4">
-            <span className="bg-white/20 px-3 py-1 rounded-lg text-sm font-semibold">ANNOUNCEMENTS</span>
-            <div className="overflow-hidden flex-1">
-              <div className="animate-marquee whitespace-nowrap">
-                <span className="mx-8">📿 Ramadan preparation classes start next week</span>
-                <span className="mx-8">🕌 Friday Jumu&apos;ah at 1:15 PM</span>
-                <span className="mx-8">📚 Youth Islamic studies program registration open</span>
-                <span className="mx-8">🤝 Community iftar this Saturday 6:30 PM</span>
+        {announcements.length > 0 && (
+          <div className="bg-gradient-to-r from-green-700 to-green-800 text-white rounded-2xl p-4 shadow-xl">
+            <div className="flex items-center gap-4">
+              <span className="bg-white/20 px-3 py-1 rounded-lg text-sm font-semibold">ANNOUNCEMENTS</span>
+              <div className="overflow-hidden flex-1">
+                <div className="animate-marquee whitespace-nowrap">
+                  {announcements.map((announcement, index) => (
+                    <span key={announcement.id} className="mx-8">
+                      {announcement.icon} {announcement.text}
+                    </span>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
-        </div>
+        )}
       </div>
+      <PerformanceIndicator />
       <style jsx>{`
         @keyframes marquee {
           0% { transform: translateX(100%); }
