@@ -55,11 +55,20 @@ export async function GET(req: NextRequest) {
     `);
     const activeEvents = (eventsResult as any)?.count || 0;
     
-    // Get total volunteers count (unique users who have signed up for any event)
-    const volunteersResult = await get(`
-      SELECT COUNT(DISTINCT user_id) as count FROM volunteer_signups
-    `);
-    const totalVolunteers = (volunteersResult as any)?.count || 0;
+    // Get total active volunteers count (from volunteer profiles)
+    let totalVolunteers = 0;
+    try {
+      const volunteersResult = await get(`
+        SELECT COUNT(*) as count FROM volunteer_profiles WHERE status = 'active'
+      `);
+      totalVolunteers = (volunteersResult as any)?.count || 0;
+    } catch (error) {
+      // Fallback to volunteer_signups if volunteer_profiles doesn't exist yet
+      const fallbackResult = await get(`
+        SELECT COUNT(DISTINCT user_id) as count FROM volunteer_signups
+      `);
+      totalVolunteers = (fallbackResult as any)?.count || 0;
+    }
     
     // Get total donations this month (if donations table exists)
     let monthlyDonations = 0;
@@ -74,11 +83,22 @@ export async function GET(req: NextRequest) {
       monthlyDonations = 0;
     }
     
+    // Get total forms count
+    let totalForms = 0;
+    try {
+      const formsResult = await get(`SELECT COUNT(*) as count FROM custom_forms`);
+      totalForms = (formsResult as any)?.count || 0;
+    } catch (error) {
+      // Forms table doesn't exist yet
+      totalForms = 0;
+    }
+    
     return NextResponse.json({
       totalUsers,
       activeEvents,
       totalVolunteers,
-      monthlyDonations
+      monthlyDonations,
+      totalForms
     });
     
   } catch (error) {

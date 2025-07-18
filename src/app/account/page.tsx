@@ -2,7 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { User, Mail, Phone, Heart, Clock, Calendar, Save, LogOut } from 'lucide-react';
+import Link from 'next/link';
+import { User, Mail, Phone, Save, LogOut, Edit, Heart, Settings } from 'lucide-react';
 
 interface UserData {
   id: number;
@@ -10,28 +11,21 @@ interface UserData {
   firstName: string;
   lastName: string;
   phone?: string;
-  volunteerInterests?: string;
-  skills?: string;
-  availability?: string;
-  emergencyContactName?: string;
-  emergencyContactPhone?: string;
-  // Keep old field for backward compatibility
-  emergencyContact?: string;
 }
 
 const AccountPage = () => {
   const router = useRouter();
   const [user, setUser] = useState<UserData | null>(null);
+  const [volunteerProfile, setVolunteerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState('');
+  const [editMode, setEditMode] = useState(false);
   const [formData, setFormData] = useState({
-    phone: '',
-    volunteerInterests: '',
-    skills: '',
-    availability: '',
-    emergencyContactName: '',
-    emergencyContactPhone: ''
+    firstName: '',
+    lastName: '',
+    email: '',
+    phone: ''
   });
 
   useEffect(() => {
@@ -40,18 +34,30 @@ const AccountPage = () => {
       const parsedUser = JSON.parse(userData);
       setUser(parsedUser);
       setFormData({
-        phone: parsedUser.phone || '',
-        volunteerInterests: parsedUser.volunteerInterests || '',
-        skills: parsedUser.skills || '',
-        availability: parsedUser.availability || '',
-        emergencyContactName: parsedUser.emergencyContactName || '',
-        emergencyContactPhone: parsedUser.emergencyContactPhone || ''
+        firstName: parsedUser.firstName || '',
+        lastName: parsedUser.lastName || '',
+        email: parsedUser.email || '',
+        phone: parsedUser.phone || ''
       });
+      fetchVolunteerProfile(parsedUser.id);
     } else {
       router.push('/signin');
     }
     setLoading(false);
   }, [router]);
+
+  const fetchVolunteerProfile = async (userId: number) => {
+    try {
+      const response = await fetch(`/api/user/volunteer-profile?userId=${userId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setVolunteerProfile(data.profile);
+      }
+    } catch (error) {
+      console.error('Failed to fetch volunteer profile:', error);
+    }
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,6 +82,7 @@ const AccountPage = () => {
         const updatedUser = { ...user, ...formData };
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser as UserData);
+        setEditMode(false);
       } else {
         setMessage('Failed to update profile');
       }
@@ -93,7 +100,7 @@ const AccountPage = () => {
     router.push('/');
   };
 
-  const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
@@ -104,8 +111,8 @@ const AccountPage = () => {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 flex items-center justify-center">
         <div className="text-center">
-          <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600 mx-auto"></div>
-          <p className="mt-4 text-gray-600">Loading your account...</p>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Loading account...</p>
         </div>
       </div>
     );
@@ -115,22 +122,9 @@ const AccountPage = () => {
     return null;
   }
 
-  const volunteerOptions = [
-    'Event Organization',
-    'Community Outreach',
-    'Youth Programs',
-    'Education/Teaching',
-    'Food Service',
-    'Facility Maintenance',
-    'Technology Support',
-    'Translation Services',
-    'Administrative Support',
-    'Fundraising'
-  ];
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-green-50 via-white to-green-100 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-3xl mx-auto">
+      <div className="max-w-2xl mx-auto">
         <div className="text-center mb-8">
           <div className="w-20 h-20 bg-gradient-to-br from-green-600 to-green-700 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg">
             <User className="w-10 h-10 text-white" />
@@ -142,181 +136,213 @@ const AccountPage = () => {
         <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-8 border border-green-100">
           {/* User Info Section */}
           <div className="mb-8 p-6 bg-green-50 rounded-lg">
-            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
-              <User className="w-5 h-5" />
-              Account Information
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-              <div>
-                <label className="text-gray-600">Name:</label>
-                <p className="font-semibold">{user.firstName} {user.lastName}</p>
-              </div>
-              <div>
-                <label className="text-gray-600">Email:</label>
-                <p className="font-semibold">{user.email}</p>
-              </div>
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                <User className="w-5 h-5" />
+                Account Information
+              </h2>
+              {!editMode && (
+                <button
+                  onClick={() => setEditMode(true)}
+                  className="flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Edit className="w-4 h-4" />
+                  Edit Account
+                </button>
+              )}
             </div>
-          </div>
-
-          <form onSubmit={handleSubmit} className="space-y-6">
-            {message && (
-              <div className={`border px-4 py-3 rounded-lg ${
-                message.includes('successfully') 
-                  ? 'bg-green-100 border-green-400 text-green-700'
-                  : 'bg-red-100 border-red-400 text-red-700'
-              }`}>
-                {message}
+            
+            {!editMode ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div>
+                  <label className="text-gray-600">Name:</label>
+                  <p className="font-semibold">{user.firstName} {user.lastName}</p>
+                </div>
+                <div>
+                  <label className="text-gray-600">Email:</label>
+                  <p className="font-semibold">{user.email}</p>
+                </div>
+                <div>
+                  <label className="text-gray-600">Phone:</label>
+                  <p className="font-semibold">{user.phone || 'Not provided'}</p>
+                </div>
               </div>
-            )}
-
-            {/* Contact Information */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Phone className="w-5 h-5" />
-                Contact Information
-              </h3>
-              
-              <div>
-                <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-2">
-                  Phone Number
-                </label>
-                <input
-                  type="tel"
-                  id="phone"
-                  name="phone"
-                  value={formData.phone}
-                  onChange={handleChange}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="(555) 123-4567"
-                />
-              </div>
-
+            ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label htmlFor="emergencyContactName" className="block text-sm font-medium text-gray-700 mb-2">
-                    Emergency Contact Name
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    First Name
                   </label>
                   <input
                     type="text"
-                    id="emergencyContactName"
-                    name="emergencyContactName"
-                    value={formData.emergencyContactName}
+                    name="firstName"
+                    value={formData.firstName}
                     onChange={handleChange}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                    placeholder="Full name"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
                   />
                 </div>
-                
                 <div>
-                  <label htmlFor="emergencyContactPhone" className="block text-sm font-medium text-gray-700 mb-2">
-                    Emergency Contact Phone
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Last Name
+                  </label>
+                  <input
+                    type="text"
+                    name="lastName"
+                    value={formData.lastName}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="email"
+                    value={formData.email}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Phone Number
                   </label>
                   <input
                     type="tel"
-                    id="emergencyContactPhone"
-                    name="emergencyContactPhone"
-                    value={formData.emergencyContactPhone}
+                    name="phone"
+                    value={formData.phone}
                     onChange={handleChange}
-                    className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
                     placeholder="(555) 123-4567"
                   />
                 </div>
               </div>
-            </div>
+            )}
+          </div>
 
-            {/* Volunteer Preferences */}
-            <div className="space-y-4">
-              <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
-                <Heart className="w-5 h-5" />
-                Volunteer Preferences
-              </h3>
-              
+          {message && (
+            <div className={`border px-4 py-3 rounded-lg mb-6 ${
+              message.includes('successfully') 
+                ? 'bg-green-100 border-green-400 text-green-700'
+                : 'bg-red-100 border-red-400 text-red-700'
+            }`}>
+              {message}
+            </div>
+          )}
+
+          {/* Volunteer Status Section */}
+          <div className="mb-8 p-6 bg-blue-50 rounded-lg">
+            <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center gap-2">
+              <Heart className="w-5 h-5" />
+              Volunteer Status
+            </h2>
+            
+            {volunteerProfile ? (
               <div>
-                <label htmlFor="volunteerInterests" className="block text-sm font-medium text-gray-700 mb-2">
-                  Areas of Interest
-                </label>
-                <div className="grid grid-cols-2 gap-2">
-                  {volunteerOptions.map((option) => (
-                    <label key={option} className="flex items-center space-x-2">
-                      <input
-                        type="checkbox"
-                        value={option}
-                        checked={formData.volunteerInterests.includes(option)}
-                        onChange={(e) => {
-                          const interests = formData.volunteerInterests.split(', ').filter(i => i);
-                          if (e.target.checked) {
-                            interests.push(option);
-                          } else {
-                            const index = interests.indexOf(option);
-                            if (index > -1) interests.splice(index, 1);
-                          }
-                          setFormData({ ...formData, volunteerInterests: interests.join(', ') });
-                        }}
-                        className="rounded border-gray-300 text-green-600 focus:ring-green-500"
-                      />
-                      <span className="text-sm">{option}</span>
-                    </label>
-                  ))}
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 bg-green-500 rounded-full"></div>
+                  <span className="font-semibold text-green-800">Active Volunteer</span>
+                  <span className="text-sm text-gray-600">
+                    Member since {new Date(volunteerProfile.volunteer_since).toLocaleDateString()}
+                  </span>
                 </div>
-              </div>
-
-              <div>
-                <label htmlFor="skills" className="block text-sm font-medium text-gray-700 mb-2">
-                  Skills & Experience
-                </label>
-                <textarea
-                  id="skills"
-                  name="skills"
-                  rows={3}
-                  value={formData.skills}
-                  onChange={handleChange}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="Describe your relevant skills and experience..."
-                />
-              </div>
-
-              <div>
-                <label htmlFor="availability" className="block text-sm font-medium text-gray-700 mb-2">
-                  Availability
-                </label>
-                <textarea
-                  id="availability"
-                  name="availability"
-                  rows={2}
-                  value={formData.availability}
-                  onChange={handleChange}
-                  className="w-full px-3 py-3 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500"
-                  placeholder="When are you typically available? (e.g., weekends, evenings)"
-                />
-              </div>
-            </div>
-
-            <div className="flex gap-4 pt-6">
-              <button
-                type="submit"
-                disabled={saving}
-                className="flex-1 flex justify-center items-center py-3 px-4 border border-transparent rounded-lg shadow-sm text-white bg-gradient-to-r from-green-600 to-green-700 hover:from-green-700 hover:to-green-800 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 font-semibold transition-all duration-300 transform hover:scale-105 disabled:opacity-50 disabled:transform-none"
-              >
-                {saving ? (
-                  'Saving...'
-                ) : (
-                  <>
-                    <Save className="w-4 h-4 mr-2" />
-                    Save Changes
-                  </>
+                
+                {volunteerProfile.tags && volunteerProfile.tags.length > 0 && (
+                  <div className="mb-4">
+                    <p className="text-sm text-gray-600 mb-2">Areas of Interest:</p>
+                    <div className="flex flex-wrap gap-2">
+                      {volunteerProfile.tags.map((tag: string, index: number) => (
+                        <span
+                          key={tag}
+                          className="px-3 py-1 bg-blue-100 text-blue-800 text-sm rounded-full"
+                        >
+                          {tag}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 )}
-              </button>
-              
+                
+                <Link
+                  href="/volunteer/apply" // This will redirect to edit mode for existing volunteers
+                  className="inline-flex items-center gap-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                >
+                  <Settings className="w-4 h-4" />
+                  Update Volunteer Preferences
+                </Link>
+              </div>
+            ) : (
+              <div>
+                <div className="flex items-center gap-2 mb-4">
+                  <div className="w-3 h-3 bg-gray-400 rounded-full"></div>
+                  <span className="font-semibold text-gray-600">Not a volunteer yet</span>
+                </div>
+                <p className="text-gray-600 mb-4">
+                  Join our community of dedicated volunteers and make a meaningful impact in our community.
+                </p>
+                <Link
+                  href="/volunteer/apply"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105"
+                >
+                  <Heart className="w-5 h-5" />
+                  Become a Volunteer Today
+                </Link>
+              </div>
+            )}
+          </div>
+
+          {/* Edit Form - Only visible when in edit mode */}
+          {editMode && (
+            <form onSubmit={handleSubmit} className="space-y-6">
+              <div className="flex flex-col sm:flex-row gap-4">
+                <button
+                  type="submit"
+                  disabled={saving}
+                  className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-6 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 focus:ring-2 focus:ring-green-500 disabled:opacity-50 transition-all duration-300"
+                >
+                  <Save className="w-5 h-5" />
+                  {saving ? 'Saving...' : 'Save Changes'}
+                </button>
+                
+                <button
+                  type="button"
+                  onClick={() => {
+                    setEditMode(false);
+                    setMessage('');
+                    // Reset form data
+                    setFormData({
+                      firstName: user?.firstName || '',
+                      lastName: user?.lastName || '',
+                      email: user?.email || '',
+                      phone: user?.phone || ''
+                    });
+                  }}
+                  className="flex items-center justify-center gap-2 bg-gray-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-gray-700 focus:ring-2 focus:ring-gray-500 transition-all duration-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </form>
+          )}
+
+          {/* Action Buttons - Only visible when NOT in edit mode */}
+          {!editMode && (
+            <div className="flex justify-center pt-6">
               <button
                 type="button"
                 onClick={handleLogout}
-                className="px-6 py-3 border border-red-300 rounded-lg text-red-600 hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500 font-semibold transition-all duration-300 flex items-center gap-2"
+                className="flex items-center justify-center gap-2 bg-red-600 text-white py-3 px-6 rounded-lg font-semibold hover:bg-red-700 focus:ring-2 focus:ring-red-500 transition-all duration-300"
               >
-                <LogOut className="w-4 h-4" />
-                Sign Out
+                <LogOut className="w-5 h-5" />
+                Logout
               </button>
             </div>
-          </form>
+          )}
         </div>
       </div>
     </div>

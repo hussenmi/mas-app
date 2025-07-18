@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Menu, X, Clock, MapPin, Phone, Mail, Calendar, Heart, HandHeart, Users, BookOpen, Home, Compass, User } from 'lucide-react';
+import { Menu, X, Clock, MapPin, Phone, Mail, Calendar, Heart, HandHeart, Users, BookOpen, Home, Compass, User, FileText } from 'lucide-react';
 import Link from 'next/link';
 import Image from 'next/image';
 

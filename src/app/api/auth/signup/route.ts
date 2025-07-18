@@ -121,12 +121,13 @@ export async function POST(req: NextRequest) {
       [email, hashedPassword, firstName, lastName, phone || null]
     );
     
-    console.log('User created successfully with ID:', result.lastID);
+    const userId = (result as any).lastID;
+    console.log('User created successfully with ID:', userId);
     
     return NextResponse.json({
       success: true,
       message: 'User created successfully',
-      userId: result.lastID
+      userId: userId
     });
     
   } catch (error) {

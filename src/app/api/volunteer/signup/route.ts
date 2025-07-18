@@ -125,6 +125,23 @@ export async function POST(req: NextRequest) {
       );
     }
     
+    // Check if user has a volunteer profile first
+    const volunteerProfile = await get(
+      'SELECT id FROM volunteer_profiles WHERE user_id = ? AND status = "active"',
+      [userId]
+    );
+    
+    if (!volunteerProfile) {
+      return NextResponse.json(
+        { 
+          error: 'You must complete your volunteer application before signing up for events.',
+          requiresApplication: true,
+          applicationUrl: '/volunteer/apply'
+        },
+        { status: 400 }
+      );
+    }
+    
     // Create the volunteer signup
     await run(
       'INSERT INTO volunteer_signups (user_id, event_id, status) VALUES (?, ?, ?)',

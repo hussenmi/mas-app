@@ -23,10 +23,12 @@ interface VolunteerEvent {
 
 export default function VolunteerPage() {
   const [user, setUser] = useState<any>(null);
+  const [volunteerProfile, setVolunteerProfile] = useState<any>(null);
   const [events, setEvents] = useState<VolunteerEvent[]>([]);
   const [signedUpEvents, setSignedUpEvents] = useState<number[]>([]);
   const [message, setMessage] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [profileLoading, setProfileLoading] = useState(true);
   const [cancellationModal, setCancellationModal] = useState<{
     isOpen: boolean;
     eventId: number;
@@ -43,11 +45,27 @@ export default function VolunteerPage() {
     if (userData) {
       const user = JSON.parse(userData);
       setUser(user);
+      fetchVolunteerProfile(user.id);
       fetchUserSignups(user.id);
     }
 
     fetchEvents();
   }, []);
+
+  const fetchVolunteerProfile = async (userId: number) => {
+    try {
+      const response = await fetch(`/api/user/volunteer-profile?userId=${userId}`);
+      const data = await response.json();
+      
+      if (response.ok) {
+        setVolunteerProfile(data.profile);
+      }
+    } catch (error) {
+      console.error('Failed to fetch volunteer profile:', error);
+    } finally {
+      setProfileLoading(false);
+    }
+  };
 
   const fetchUserSignups = async (userId: number) => {
     try {
@@ -86,6 +104,12 @@ export default function VolunteerPage() {
   const handleSignUp = async (eventId: number) => {
     if (!user) {
       setMessage('Please sign in to volunteer for events');
+      return;
+    }
+    
+    if (!volunteerProfile) {
+      // Redirect directly to become volunteer page instead of showing error
+      window.location.href = '/volunteer/apply';
       return;
     }
 
@@ -216,6 +240,55 @@ export default function VolunteerPage() {
                 <AlertCircle className="w-5 h-5" />
                 <Link href="/signin" className="font-semibold hover:underline">Sign in</Link> to volunteer for events
               </p>
+            </div>
+          )}
+          
+          {user && !profileLoading && !volunteerProfile && (
+            <div className="mt-6 bg-gradient-to-br from-green-50 to-green-100 border border-green-300 px-6 py-4 rounded-lg max-w-3xl mx-auto">
+              <div className="text-center">
+                <h3 className="font-bold text-2xl text-green-800 mb-3">Ready to Make a Difference?</h3>
+                
+                {/* Islamic Quote */}
+                <div className="bg-white/70 rounded-lg p-4 mb-4 border-l-4 border-green-600">
+                  <div className="text-lg font-semibold text-green-800 mb-2 leading-relaxed">
+                    "مَّنۡ عَمِلَ صَٰلِحٗا فَلِنَفۡسِهِ"
+                  </div>
+                  <div className="text-sm text-green-700 mb-2">
+                    "Whoever does good deeds, it is for his own benefit."
+                  </div>
+                  <div className="text-xs text-green-600 font-medium">
+                    — Quran 41:46
+                  </div>
+                </div>
+                
+                <p className="text-green-700 mb-5 text-lg">
+                  Join our community of dedicated volunteers and earn immense rewards while serving Allah (SWT) through service to His creation.
+                </p>
+                
+                <Link
+                  href="/volunteer/apply"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-green-600 to-green-700 text-white font-semibold rounded-lg hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg"
+                >
+                  <Heart className="w-5 h-5" />
+                  Become a Volunteer
+                </Link>
+              </div>
+            </div>
+          )}
+          
+          {user && !profileLoading && volunteerProfile && (
+            <div className="mt-6 bg-gradient-to-br from-blue-50 to-blue-100 border border-blue-300 px-6 py-4 rounded-lg max-w-2xl mx-auto">
+              <div className="text-center">
+                <h3 className="font-bold text-xl text-blue-800 mb-2">Ready to Make a Difference!</h3>
+                <p className="text-blue-700 mb-4">Thank you for being part of our volunteer team. Continue making an impact in our community.</p>
+                <Link
+                  href="/volunteer/apply"
+                  className="inline-flex items-center gap-2 px-6 py-3 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition-all duration-300"
+                >
+                  <Heart className="w-5 h-5" />
+                  Update Volunteer Preferences
+                </Link>
+              </div>
             </div>
           )}
         </div>
@@ -390,17 +463,17 @@ export default function VolunteerPage() {
           </>
         )}
 
-        {/* Call to Action */}
-        <div className="mt-8 sm:mt-12 text-center px-4 sm:px-0">
-          <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8 border border-green-100 max-w-4xl mx-auto">
-            <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Ready to Make a Difference?</h2>
-            <p className="text-lg text-gray-600 mb-6">
-              Volunteering is a beautiful way to serve our community and earn rewards from Allah (SWT). Help make our community events successful!
-            </p>
-            <p className="text-gray-600 mb-6">
-              Want to see all community events? Visit our <Link href="/events" className="text-green-600 hover:underline font-semibold">Events Page</Link> to see what's happening at MAS Queens.
-            </p>
-            {!user ? (
+        {/* Call to Action - Only show if user is not logged in */}
+        {!user && (
+          <div className="mt-8 sm:mt-12 text-center px-4 sm:px-0">
+            <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 sm:p-8 border border-green-100 max-w-4xl mx-auto">
+              <h2 className="text-2xl sm:text-3xl font-bold text-gray-800 mb-4">Ready to Make a Difference?</h2>
+              <p className="text-lg text-gray-600 mb-6">
+                Volunteering is a beautiful way to serve our community and earn rewards from Allah (SWT). Help make our community events successful!
+              </p>
+              <p className="text-gray-600 mb-6">
+                Want to see all community events? Visit our <Link href="/events" className="text-green-600 hover:underline font-semibold">Events Page</Link> to see what's happening at MAS Queens.
+              </p>
               <div className="space-y-4">
                 <Link href="/signin" className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg">
                   <UserPlus className="w-5 h-5" />
@@ -410,14 +483,9 @@ export default function VolunteerPage() {
                   Don&apos;t have an account? <Link href="/signup" className="text-green-600 hover:underline">Create one here</Link>
                 </p>
               </div>
-            ) : (
-              <Link href="/account" className="inline-flex items-center gap-2 bg-gradient-to-r from-green-600 to-green-700 text-white px-8 py-3 rounded-lg font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 transform hover:scale-105 shadow-lg">
-                <Heart className="w-5 h-5" />
-                Update Your Volunteer Preferences
-              </Link>
-            )}
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Cancellation Modal */}

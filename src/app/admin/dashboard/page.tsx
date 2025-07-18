@@ -12,7 +12,9 @@ import {
   LogOut,
   BarChart3,
   Clock,
-  UserCheck
+  UserCheck,
+  FileText,
+  Heart
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -29,6 +31,7 @@ interface DashboardStats {
   activeEvents: number;
   totalVolunteers: number;
   monthlyDonations: number;
+  totalForms: number;
 }
 
 const AdminDashboardPage = () => {
@@ -39,7 +42,8 @@ const AdminDashboardPage = () => {
     totalUsers: 0,
     activeEvents: 0,
     totalVolunteers: 0,
-    monthlyDonations: 0
+    monthlyDonations: 0,
+    totalForms: 0
   });
 
   useEffect(() => {
@@ -104,12 +108,28 @@ const AdminDashboardPage = () => {
       stats: `${stats.totalUsers} Users`
     },
     {
+      title: 'Volunteer Management',
+      description: 'Manage volunteer profiles, skills, and engagement',
+      icon: Heart,
+      href: '/admin/volunteers',
+      color: 'from-red-600 to-red-700',
+      stats: `${stats.totalVolunteers} Active Volunteers`
+    },
+    {
       title: 'Donations',
       description: 'Track donations and generate reports',
       icon: DollarSign,
       href: '/admin/donations',
       color: 'from-yellow-600 to-yellow-700',
       stats: `$${stats.monthlyDonations.toLocaleString()} This Month`
+    },
+    {
+      title: 'Forms Management',
+      description: 'Create and manage community forms',
+      icon: FileText,
+      href: '/admin/forms',
+      color: 'from-teal-600 to-teal-700',
+      stats: `${stats.totalForms || 0} Forms`
     },
     {
       title: 'Announcements',

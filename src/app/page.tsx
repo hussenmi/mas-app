@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Clock, Calendar, MapPin, Heart, HandHeart, Users, BookOpen, ChevronRight, Moon, Sun, Sunset } from 'lucide-react';
+import { Clock, Calendar, MapPin, Heart, HandHeart, Users, BookOpen, ChevronRight, Moon, Sun, Sunset, FileText, AlertCircle } from 'lucide-react';
 import Link from 'next/link';
 import dayjs from 'dayjs';
 import duration from 'dayjs/plugin/duration';
@@ -105,6 +105,7 @@ const HomePage = () => {
   const [mounted, setMounted] = useState<boolean>(false);
   const [islamicDate, setIslamicDate] = useState('');
   const [announcements, setAnnouncements] = useState<any[]>([]);
+  const [featuredForms, setFeaturedForms] = useState<any[]>([]);
 
   const verses = [
     { arabic: 'وَمَنْ أَحْيَاهَا فَكَأَنَّمَا أَحْيَا النَّاسَ جَمِيعًا', english: 'And whoever saves a life, it is as if he has saved all of mankind.', reference: 'Quran 5:32' },
@@ -121,6 +122,7 @@ const HomePage = () => {
     }
     fetchAnnouncements();
     fetchIslamicDateOptimized();
+    fetchFeaturedForms();
   }, []);
 
   // Fetch announcements with client-side caching
@@ -150,6 +152,20 @@ const HomePage = () => {
       }
     } catch (error) {
       console.error('Failed to fetch announcements:', error);
+    }
+  };
+
+  // Fetch featured forms for homepage display
+  const fetchFeaturedForms = async () => {
+    try {
+      const response = await fetch('/api/forms/public');
+      const data = await response.json();
+      
+      if (response.ok) {
+        setFeaturedForms(data.forms || []);
+      }
+    } catch (error) {
+      console.error('Failed to fetch featured forms:', error);
     }
   };
 
@@ -428,6 +444,81 @@ const HomePage = () => {
             )}
           </div>
         </div>
+
+        {/* Featured Forms Section */}
+        {featuredForms.length > 0 && (
+          <div className="mb-12">
+            <div className="text-center mb-8">
+              <h2 className="text-3xl font-bold text-gray-800 mb-4">🌟 Applications & Forms</h2>
+              <p className="text-gray-600 text-lg">Important forms and applications currently available for our community</p>
+            </div>
+            
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {featuredForms.map((form) => {
+                const isExpired = form.isExpired;
+                const IconComponent = FileText; // Default icon, could be dynamic in future
+                
+                return (
+                  <div key={form.id} className="bg-white/95 backdrop-blur-sm rounded-2xl shadow-xl border border-green-100 overflow-hidden hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
+                    <div className={`bg-gradient-to-r ${form.color} p-6 text-white relative`}>
+                      {isExpired && (
+                        <div className="absolute top-2 right-2 bg-red-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                          EXPIRED
+                        </div>
+                      )}
+                      <div className="flex items-center gap-4">
+                        <div className="bg-white/20 p-3 rounded-xl">
+                          <IconComponent className="w-8 h-8" />
+                        </div>
+                        <div>
+                          <h3 className="text-xl font-bold">{form.title}</h3>
+                          {form.deadline && (
+                            <p className="text-white/90 text-sm">
+                              Deadline: {new Date(form.deadline).toLocaleDateString('en-US', { 
+                                month: 'short',
+                                day: 'numeric',
+                                year: 'numeric'
+                              })}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                    
+                    <div className="p-6">
+                      <p className="text-gray-600 mb-6 leading-relaxed">{form.description}</p>
+                      
+                      {isExpired ? (
+                        <div className="flex items-center gap-2 text-red-600 bg-red-50 p-3 rounded-lg">
+                          <AlertCircle className="w-4 h-4" />
+                          <span className="text-sm font-medium">This form is no longer accepting submissions</span>
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          <Link 
+                            href={`/forms/${form.slug}`}
+                            className="block w-full bg-gradient-to-r from-green-600 to-green-700 text-white py-3 px-6 rounded-xl font-semibold hover:from-green-700 hover:to-green-800 transition-all duration-300 text-center"
+                          >
+                            Fill Out Application
+                          </Link>
+                          <a 
+                            href={form.google_form_url}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="block w-full bg-gray-100 text-gray-700 py-2 px-6 rounded-xl font-medium hover:bg-gray-200 transition-colors text-center text-sm"
+                          >
+                            Open in New Tab
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+
         {/* Community Features Grid */}
         <div className="grid md:grid-cols-3 gap-6 mb-8">
           <div className="bg-white/90 backdrop-blur-sm rounded-2xl shadow-xl p-6 border border-green-100 hover:shadow-2xl transition-all duration-300 transform hover:scale-105">
