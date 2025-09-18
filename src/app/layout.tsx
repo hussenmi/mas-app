@@ -3,6 +3,7 @@ import { Poppins } from "next/font/google";
 import "./globals.css";
 import EnhancedNavigation from "@/components/EnhancedNavigation";
 import Footer from "@/components/Footer";
+import ChatWidget from "@/components/ChatWidget";
 
 const poppins = Poppins({ subsets: ["latin"], weight: ["400", "600", "700"] });
 
@@ -31,6 +32,7 @@ export default function RootLayout({
         <EnhancedNavigation />
         <main className="min-h-screen">{children}</main>
         <Footer />
+        <ChatWidget />
       </body>
     </html>
   );
