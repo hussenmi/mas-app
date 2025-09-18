@@ -161,12 +161,35 @@ export async function POST(req: NextRequest) {
       [email, hashedPassword, firstName, lastName, role]
     );
     
-    console.log('Admin created successfully with ID:', result.lastID);
+    // Check if result and lastID exist
+    const adminId = result && typeof result === 'object' && 'lastID' in result 
+      ? (result as any).lastID 
+      : null;
+    
+    if (!adminId) {
+      // Fallback: query the database to get the admin ID
+      const newAdmin = await get('SELECT id FROM admin_users WHERE email = ?', [email]);
+      const fallbackAdminId = newAdmin ? newAdmin.id : null;
+      
+      if (!fallbackAdminId) {
+        throw new Error('Admin was created but could not retrieve admin ID');
+      }
+      
+      console.log('Admin created successfully with fallback ID:', fallbackAdminId);
+      
+      return NextResponse.json({
+        success: true,
+        message: 'Admin user created successfully',
+        adminId: fallbackAdminId
+      });
+    }
+    
+    console.log('Admin created successfully with ID:', adminId);
     
     return NextResponse.json({
       success: true,
       message: 'Admin user created successfully',
-      adminId: result.lastID
+      adminId: adminId
     });
     
   } catch (error) {

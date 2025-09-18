@@ -20,7 +20,8 @@ async function getDb() {
 
 async function initializeVolunteerTables(db: Database) {
   const run = promisify(db.run.bind(db));
-  
+  const all = promisify(db.all.bind(db));
+
   // Volunteer profiles table
   await run(`
     CREATE TABLE IF NOT EXISTS volunteer_profiles (
@@ -81,17 +82,32 @@ async function initializeVolunteerTables(db: Database) {
     )
   `);
 
-  // Insert updated tags aligned with volunteer application (exactly 5 options)
-  await run(`DELETE FROM volunteer_tags`); // Clear existing tags
-  
-  await run(`
-    INSERT OR IGNORE INTO volunteer_tags (name, color, description) VALUES 
-    ('Event Planning', 'blue', 'Help organize and coordinate community events'),
-    ('Food & Kitchen', 'green', 'Food preparation, serving, and kitchen assistance'),
-    ('Youth Programs', 'pink', 'Programs and activities for children and youth'),
-    ('Education & Teaching', 'purple', 'Teaching, tutoring, and educational support'),
-    ('General Support', 'teal', 'Admin, outreach, maintenance, and general assistance')
-  `);
+  const defaultTags = [
+    { name: 'Event Planning', color: 'blue', description: 'Help organize and coordinate community events' },
+    { name: 'Food & Kitchen', color: 'green', description: 'Food preparation, serving, and kitchen assistance' },
+    { name: 'Youth Programs', color: 'pink', description: 'Programs and activities for children and youth' },
+    { name: 'Education & Teaching', color: 'purple', description: 'Teaching, tutoring, and educational support' },
+    { name: 'General Support', color: 'teal', description: 'Admin, outreach, maintenance, and general assistance' }
+  ];
+
+  for (const tag of defaultTags) {
+    await run(`
+      INSERT INTO volunteer_tags (name, color, description)
+      VALUES (?, ?, ?)
+      ON CONFLICT(name) DO UPDATE SET
+        color = excluded.color,
+        description = excluded.description
+    `, [tag.name, tag.color, tag.description]);
+  }
+
+  const tags: { id: number; name: string }[] = await all(`SELECT id, name FROM volunteer_tags`);
+  for (const tag of tags) {
+    await run(`
+      UPDATE volunteer_tag_assignments
+      SET tag_id = ?
+      WHERE ((? - tag_id) % 5) = 0
+    `, [tag.id, tag.id]);
+  }
 }
 
 // GET - Fetch all volunteers with their details and tags

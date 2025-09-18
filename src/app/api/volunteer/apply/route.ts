@@ -20,6 +20,7 @@ async function getDb() {
 
 async function initializeVolunteerTables(db: Database) {
   const run = promisify(db.run.bind(db));
+  const all = promisify(db.all.bind(db));
   
   // Volunteer profiles table
   await run(`
@@ -88,23 +89,31 @@ async function initializeVolunteerTables(db: Database) {
     )
   `);
 
-  // Update default tags to be more streamlined 
-  await run(`DELETE FROM volunteer_tags`); // Clear existing tags
-  
-  // Insert streamlined areas of interest (exactly 5 options)
   const updatedTags = [
-    ['Event Planning', 'blue', 'Help organize and coordinate community events'],
-    ['Food & Kitchen', 'green', 'Food preparation, serving, and kitchen assistance'],
-    ['Youth Programs', 'pink', 'Programs and activities for children and youth'],
-    ['Education & Teaching', 'purple', 'Teaching, tutoring, and educational support'],
-    ['General Support', 'teal', 'Admin, outreach, maintenance, and general assistance']
+    { name: 'Event Planning', color: 'blue', description: 'Help organize and coordinate community events' },
+    { name: 'Food & Kitchen', color: 'green', description: 'Food preparation, serving, and kitchen assistance' },
+    { name: 'Youth Programs', color: 'pink', description: 'Programs and activities for children and youth' },
+    { name: 'Education & Teaching', color: 'purple', description: 'Teaching, tutoring, and educational support' },
+    { name: 'General Support', color: 'teal', description: 'Admin, outreach, maintenance, and general assistance' }
   ];
 
-  for (const [name, color, description] of updatedTags) {
+  for (const tag of updatedTags) {
     await run(`
-      INSERT OR IGNORE INTO volunteer_tags (name, color, description) 
+      INSERT INTO volunteer_tags (name, color, description)
       VALUES (?, ?, ?)
-    `, [name, color, description]);
+      ON CONFLICT(name) DO UPDATE SET
+        color = excluded.color,
+        description = excluded.description
+    `, [tag.name, tag.color, tag.description]);
+  }
+
+  const tags: { id: number; name: string }[] = await all(`SELECT id, name FROM volunteer_tags`);
+  for (const tag of tags) {
+    await run(`
+      UPDATE volunteer_tag_assignments
+      SET tag_id = ?
+      WHERE ((? - tag_id) % 5) = 0
+    `, [tag.id, tag.id]);
   }
 }
 

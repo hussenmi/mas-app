@@ -34,23 +34,6 @@ export default function CreateFormPage() {
     }
   }, [router]);
 
-  // Auto-generate embed URL when Google Form URL changes
-  const handleGoogleFormUrlChange = (url: string) => {
-    setFormData({...formData, googleFormUrl: url});
-    
-    if (url.includes('docs.google.com/forms')) {
-      // Convert regular form URL to embed URL
-      let embedUrl = url;
-      if (url.includes('/viewform')) {
-        embedUrl = url.replace('/viewform', '/viewform?embedded=true');
-      } else if (!url.includes('embedded=true')) {
-        const separator = url.includes('?') ? '&' : '?';
-        embedUrl = url + separator + 'embedded=true';
-      }
-      setFormData(prev => ({...prev, googleFormUrl: url, embedUrl}));
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);

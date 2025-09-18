@@ -121,7 +121,29 @@ export async function POST(req: NextRequest) {
       [email, hashedPassword, firstName, lastName, phone || null]
     );
     
-    const userId = (result as any).lastID;
+    // Check if result and lastID exist
+    const userId = result && typeof result === 'object' && 'lastID' in result 
+      ? (result as any).lastID 
+      : null;
+    
+    if (!userId) {
+      // Fallback: query the database to get the user ID
+      const newUser = await get('SELECT id FROM users WHERE email = ?', [email]);
+      const fallbackUserId = newUser ? newUser.id : null;
+      
+      if (!fallbackUserId) {
+        throw new Error('User was created but could not retrieve user ID');
+      }
+      
+      console.log('User created successfully with fallback ID:', fallbackUserId);
+      
+      return NextResponse.json({
+        success: true,
+        message: 'User created successfully',
+        userId: fallbackUserId
+      });
+    }
+    
     console.log('User created successfully with ID:', userId);
     
     return NextResponse.json({
